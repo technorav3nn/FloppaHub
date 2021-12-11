@@ -135,7 +135,7 @@ local function arrestPlayer(player)
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
                     targetPlayer.Character.HumanoidRootPart.CFrame
                 game.Workspace.Remote.arrest:InvokeServer(targetPlayer.Character.Head)
-                i = i + 1
+                val = val + 1
             until val == 25 and targetPlayer.Character:FindFirstChild("Head"):FindFirstChild("handcuffedGui")
         end
     )
@@ -179,7 +179,7 @@ do
             local maxspeed = 100
             local speed = flags["flySpeed"]
 
-            function Fly()
+            local function Fly()
                 local bg = Instance.new("BodyGyro", torso)
                 bg.P = 9e4
                 bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
@@ -311,13 +311,14 @@ do
             workspace.Gravity = value
         end
     )
-    local respawnToggle =
-        playerSec:addToggle(
+    local respawnToggle
+    respawnToggle = playerSec:addToggle(
         "Respawn where you died",
         false,
         function(bool)
-            function log()
-                deadpos = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+            local deadPosition
+            local function log()
+                deadPosition = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
             end
             if bool then
                 flags["respawnDied"] = true
@@ -326,7 +327,7 @@ do
                 game.Players.LocalPlayer.CharacterAdded:Connect(
                     function(char)
                         char:WaitForChild("Humanoid", 3).Died:Connect(log)
-                        char:WaitForChild("HumanoidRootPart", 3).CFrame = deadpos
+                        char:WaitForChild("HumanoidRootPart", 3).CFrame = deadPosition
                     end
                 )
             else
@@ -857,7 +858,7 @@ do
         "Kill All",
         function()
             for i, v in pairs(game.Players:GetPlayers()) do
-                if v ~= game.Players.LocalPlayer or v ~= Player then
+                if v ~= game.Players.LocalPlayer or v ~= game.Players.LocalPlayer then
                     killPlayer(v)
                 end
             end

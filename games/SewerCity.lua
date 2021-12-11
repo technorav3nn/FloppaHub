@@ -146,9 +146,7 @@ local function getCollectables(name)
                 firstTime = false
                 break
             end
-            if (not gettingItems.ATM) or (not gettingItems.Money) or (not gettingItems.Register) then
-                break
-            end
+
             playerChar.HumanoidRootPart.CFrame = oldPos
         end
     else
@@ -185,6 +183,8 @@ populateItems()
 removeDuplicateGuis()
 deleteAntiCheatScripts()
 disableAntiCheatTactics()
+
+table.sort(allItemsKeys)
 
 local library = safeLoadstring("UI", "https://raw.githubusercontent.com/wally-rblx/uwuware-ui/main/main.lua")()
 
@@ -223,6 +223,33 @@ do
                 key = Enum.KeyCode.T,
                 callback = function()
                     runToggle:SetState(not runToggle.state)
+                end
+            }
+        )
+        mainFolder:AddToggle(
+            {
+                text = "Auto Dumbell",
+                flag = "",
+                callback = function(bool)
+                    _G.toggled = bool
+                    local dumbellPath = game:GetService("Workspace")["Dumbell | $350"]
+                    local playerChar = player.Character
+
+                    local hrp = playerChar.HumanoidRootPart
+
+                    hrp.CFrame = dumbellPath.Head.CFrame
+
+                    for i = 0, 999999999999999 do
+                        if not _G.toggled then
+                            break
+                        end
+                        fireclickdetector(dumbellPath.Head.ClickDetector)
+                        task.wait(3)
+                        local dumbellTool = player.Backpack:FindFirstChild("Dumbell")
+                        dumbellTool.Parent = playerChar
+                        dumbellTool:Activate()
+                        task.wait(9)
+                    end
                 end
             }
         )
@@ -337,6 +364,8 @@ runService.Heartbeat:Connect(
             getCollectables("CashRegister")
         else
             gettingItems.Register = false
+        end
+        if library.flags.autoDumbell then
         end
     end
 )

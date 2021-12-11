@@ -261,15 +261,31 @@ end
 --#endregion Combat tab
 
 --#region Rage tab
+rageTab:Label("Killing")
 rageTab:Button(
     "Kill All",
     function()
         killAll()
     end
 )
+rageTab:Label("Arresting")
+rageTab:Toggle(
+    "Arrest Aura",
+    function(bool)
+        for _, plr in pairs(players:GetChildren()) do
+            local ohString1 = "cuff"
+            local ohInstance2 = game:GetService("Players")[plr.Name]
+
+            workspace.resources.RemoteEvent:FireServer(ohString1, ohInstance2)
+        end
+        flags["arrestAura"] = bool
+    end
+)
 --#endregion
 
 runService.Heartbeat:Connect(
     function()
+        if flags.arrestAura then
+        end
     end
 )

@@ -46,7 +46,7 @@ Main:AddToggle(
             while wait() do
                 if LoopSkipping then
                     local djText = game:GetService("Workspace").DJBar.SurfaceGui.Container.TimeLeft.Text
-                    local splitted = thetext:split("DJ: ")[2]
+                    local splitted = djText:split("DJ: ")[2]
                     local currentDj = splitted:split(" -")[1]
 
                     if currentDj == game.Players.LocalPlayer.Name then

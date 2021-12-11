@@ -1,0 +1,19 @@
+{
+    "robloxLsp.diagnostics.globals": [
+        "getrawmetatable",
+        "setreadonly",
+        "getnamecallmethod",
+        "self",
+        "client",
+        "client",
+        "fireclickdetector",
+        "getgc",
+        "firetouchinterest",
+        "getconnections",
+        "hookmetamethod",
+        "checkcaller",
+        "getgenv",
+        "hookfunction",
+        "fireproximityprompt"
+    ]
+}
