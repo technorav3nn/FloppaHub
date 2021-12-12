@@ -14,6 +14,7 @@
         "checkcaller",
         "getgenv",
         "hookfunction",
-        "fireproximityprompt"
+        "fireproximityprompt",
+        "newcclosure"
     ]
 }
