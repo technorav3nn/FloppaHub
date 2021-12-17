@@ -18,63 +18,42 @@ local localPlayer = players.LocalPlayer
 local playerChar = localPlayer.Character or localPlayer.Character:Wait()
 
 -- // UI Components
-local window = Library:CreateWindow("Floppa Hub - Doomspire")
+local window = Library:CreateWindow("Floppa Hub - SD")
 local mainFolder = window:AddFolder("Main")
+
 do
     mainFolder:AddToggle(
         {
             text = "No Rocket Cooldown",
             flag = "rocketCool",
             callback = function()
-                local aux =
-                    loadstring(
-                    game:HttpGetAsync("https://raw.githubusercontent.com/Upbolt/Hydroxide/revision/ohaux.lua")
-                )()
-
-                local scriptPath = game:GetService("ReplicatedStorage").Shared.Data.WeaponConstants
-                local closureName = "Unnamed function"
-                local upvalueIndex = 3
-                local closureConstants = {}
-
-                local closure = aux.searchClosure(scriptPath, closureName, upvalueIndex, closureConstants)
-                local value = Library.flags.rocketCool and 0.0001 or 4
-
-                -- DO NOT RELY ON THIS FEATURE TO PRODUCE 100% FUNCTIONAL SCRIPTS
-                debug.setupvalue(closure, upvalueIndex, value)
+                local m = require(game:GetService("ReplicatedStorage").Shared.Data.WeaponConstants)
+                for k, v in pairs(m) do
+                    if string.find(k, "RELOAD_TIME") and type(v) == "function" then
+                        print "Ass"
+                        local upval = debug.getupvalues(v)
+                        for a, val in pairs(upval) do
+                            print(a, val)
+                            debug.setupvalue(v, 3, Library.flags.rocketCool and 0.00001 or 6)
+                        end
+                    end
+                end
             end
         }
     )
     mainFolder:AddToggle(
         {
-            text = "Infinite Lunges",
-            flag = "infLunge",
+            text = "Super Lunge",
+            flag = "superLunge",
             callback = function()
-                local aux =
-                    loadstring(
-                    game:HttpGetAsync("https://raw.githubusercontent.com/Upbolt/Hydroxide/revision/ohaux.lua")
-                )()
+                local m = require(game:GetService("StarterPlayer").StarterPlayerScripts.ToolBehaviors.Sword)
+                local upval = debug.getupvalues(m.lunge)
 
-                local scriptPath = game:GetService("StarterPlayer").StarterPlayerScripts.ToolBehaviors.Sword
-                local closureName = "lunge"
-                local upvalueIndex = 2
-                local closureConstants = {
-                    [1] = "canAct",
-                    [2] = false,
-                    [3] = "tool",
-                    [4] = "Sword",
-                    [6] = "tick",
-                    [8] = "lastSpin"
-                }
-
-                local closure = aux.searchClosure(scriptPath, closureName, upvalueIndex, closureConstants)
-                local value
-                if Library.flags.infLunge then
-                    value = 0.000001
-                else
-                    value = 2.4
+                for valIdx, val in pairs(upval) do
+                    print("INDEX: ", valIdx, "| VALUE: ", val)
                 end
 
-                debug.setupvalue(closure, upvalueIndex, value)
+                debug.setupvalue(m.lunge, 2, Library.flags.superLunge and 0.00001 or 2)
             end
         }
     )
