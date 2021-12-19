@@ -70,6 +70,11 @@ function flags:SetFlag(name, value)
     flags[name] = value
 end
 
+-- // Anti Cheat Bypass (CREDITS TO STEFANUK12!)
+loadstring(
+    game:HttpGet("https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Games/Da%20Hood/AntiCheatBypass.lua")
+)()
+
 -- // Services
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
@@ -83,8 +88,17 @@ local stepped = runService.Stepped
 local localPlayer = players.LocalPlayer
 local playerChar = localPlayer.Character or localPlayer.Character:Wait()
 
+-- // Solaris Loading
+local SolarisLib = loadstring(game:HttpGet("https://solarishub.dev/SolarisLib.lua"))()
+local sFlags = SolarisLib.Flags
+
 -- // ESP Library
-local ESP = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
+local ESP =
+    loadstring(
+    game:HttpGet(
+        "https://gist.githubusercontent.com/technorav3nn/e01810542055cefa57f8597388116b5e/raw/9cd4e5f949906d51ee0cd667f4c545a1e6ebb151/ESP.lua"
+    )
+)()
 
 -- // ESP Object Listeners
 if game:GetService("Workspace").Ignored:FindFirstChild("WinterMAP") then
@@ -127,10 +141,37 @@ ESP.Sleigh = false
 
 ESP:Toggle(true)
 
--- // UI Components
-local SolarisLib = loadstring(game:HttpGet("https://solarishub.dev/SolarisLib.lua"))()
-local sFlags = SolarisLib.Flags
+-- // Auto Rob Functions
+local function getCashiers()
+    local filteredCashiers = {}
+    for _, cashier in pairs(game:GetService("Workspace").Cashiers:GetChildren()) do
+        if (cashier.Humanoid.Health > 0) and cashier:FindFirstChild("Head") then
+            table.insert(filteredCashiers, cashier)
+        end
+    end
+    return filteredCashiers
+end
 
+local function collectNearbyCash()
+    local droppedCash = game:GetService("Workspace").Ignored.Drop
+    for _, v in pairs(droppedCash:GetDescendants()) do
+        if
+            v:IsA("ClickDetector") and
+                (v.Parent.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 18
+         then
+            repeat
+                task.wait()
+                fireclickdetector(v)
+            until not v or not v.Parent.Parent
+        end
+    end
+end
+
+local function tpPlayer(cf)
+    playerChar.HumanoidRootPart.CFrame = cf
+end
+
+-- // UI Components
 local win =
     SolarisLib:New(
     {
@@ -141,9 +182,9 @@ local win =
 
 local playerTab = win:Tab("Player")
 do
-    local playerCombatTab = playerTab:Section("Player Combat")
+    local playerCombatSec = playerTab:Section("Player Combat")
     do
-        playerCombatTab:Toggle(
+        playerCombatSec:Toggle(
             "Auto Stomp",
             false,
             "autoStomp",
@@ -159,7 +200,7 @@ do
                 )
             end
         )
-        playerCombatTab:Toggle(
+        playerCombatSec:Toggle(
             "Anti Jump Cooldown",
             false,
             "antiJump",
@@ -173,7 +214,7 @@ do
                 end
             end
         )
-        playerCombatTab:Toggle(
+        playerCombatSec:Toggle(
             "Anti Slow",
             false,
             "antiSlow",
@@ -189,9 +230,9 @@ do
             end
         )
     end
-    local playerJailTab = playerTab:Section("Jail")
+    local playerJailSec = playerTab:Section("Jail")
     do
-        playerJailTab:Button(
+        playerJailSec:Button(
             "Unjail",
             function()
                 if localPlayer.DataFolder.Information.Jail.Value ~= 0 then
@@ -213,7 +254,7 @@ do
                 end
             end
         )
-        playerJailTab:Button(
+        playerJailSec:Button(
             "Unban",
             function()
                 game.Players.LocalPlayer.Character.Humanoid.Health = 0
@@ -236,9 +277,9 @@ do
             end
         )
     end
-    local playerEffectsTab = playerTab:Section("Effects")
+    local playerEffectsSec = playerTab:Section("Effects")
     do
-        playerEffectsTab:Toggle(
+        playerEffectsSec:Toggle(
             "Anti Flashbang",
             false,
             "antiFlash",
@@ -252,7 +293,7 @@ do
                 localPlayer.PlayerGui.MainScreenGui.ChildAdded:Connect(onChildAdded)
             end
         )
-        playerEffectsTab:Toggle(
+        playerEffectsSec:Toggle(
             "Anti Pepper Spray",
             false,
             "antiPepper",
@@ -266,7 +307,7 @@ do
                 localPlayer.PlayerGui.MainScreenGui.ChildAdded:Connect(onChildAdded)
             end
         )
-        playerEffectsTab:Toggle(
+        playerEffectsSec:Toggle(
             "Anti Snowball Effect",
             false,
             "antiSnow",
@@ -281,18 +322,102 @@ do
             end
         )
     end
+    local playerMovementSec = playerTab:Section("Movement")
+    do
+        playerMovementSec:Slider(
+            "WalkSpeed",
+            16,
+            300,
+            16,
+            1,
+            "walkspeedSlider",
+            function(t)
+                localPlayer.Character.Humanoid.WalkSpeed = t
+            end
+        )
+        playerMovementSec:Slider(
+            "JumpPower",
+            50,
+            250,
+            50,
+            1,
+            "jumpPowerSlider",
+            function(t)
+                localPlayer.Character.Humanoid.JumpPower = t
+            end
+        )
+    end
+    local playerCameraSec = playerTab:Section("Camera")
+    do
+        playerCameraSec:Toggle(
+            "Infinite Zoom",
+            false,
+            "infZoom",
+            function(bool)
+                flags.infZoom = bool
+                localPlayer.CameraMaxZoomDistance = flags.infZoom and 9e9 or 100
+            end
+        )
+        playerCameraSec:Slider(
+            "FOV",
+            70,
+            200,
+            70,
+            1,
+            "fovSlider",
+            function(value)
+                --- @type Camera
+                local cam = game.Workspace.Camera
+                cam.FieldOfView = value
+            end
+        )
+    end
+end
+
+local worldTab = win:Tab("World")
+do
+    local worldViewingSec = worldTab:Section("View")
+    do
+        worldViewingSec:Toggle(
+            "No Fog",
+            false,
+            "noFog",
+            function(bool)
+                if bool then
+                    game:GetService("Lighting").FogEnd = 10000000000
+                else
+                    game:GetService("Lighting").FogEnd = 400
+                end
+            end
+        )
+        worldViewingSec:Toggle(
+            "Full Bright",
+            false,
+            "fBright",
+            function(bool)
+                flags.fullBright = bool
+
+                local lighting = game:GetService("Lighting")
+                local function doLighting()
+                    if flags.fullBright then
+                        lighting.TimeOfDay = "14:00:00"
+                        lighting.Brightness = 2
+                        lighting.ColorCorrection.Brightness = 0.1
+                        lighting.ColorCorrection.Saturation = 0.1
+                        lighting.Bloom.Intensity = 0.1
+                    end
+                end
+                if flags.fullBright then
+                    doLighting()
+                end
+                lighting.Changed:Connect(doLighting)
+            end
+        )
+    end
 end
 
 local farmingTab = win:Tab("Farming")
 do
-    local function getCashier()
-        local cashiers = game:GetService("Workspace").Cashiers
-        return cashiers[math.random(1, #cashiers:GetChildren())]
-    end
-    local function tpPlayer(cf)
-        playerChar.HumanoidRootPart.CFrame = cf
-    end
-
     local farmingSec = farmingTab:Section("Auto farming")
     do
         farmingSec:Toggle(
@@ -300,8 +425,43 @@ do
             false,
             "autoRob",
             function(bool)
-                local cashier = getCashier()
-                tpPlayer(cashier.Head.CFrame)
+                flags.autoRob = bool
+
+                if flags.autoRob then
+                    repeat
+                        if not flags.autoRob then
+                            break
+                        end
+                        task.wait()
+                        local cashiers = getCashiers()
+                        if #cashiers == 0 then
+                            repeat
+                                cashiers = getCashiers()
+                                print("WAiting")
+
+                                task.wait()
+                            until #cashiers ~= 0
+                        end
+
+                        local randomCashier = cashiers[math.random(1, #cashiers)]
+
+                        local combatTool = nil
+                        tpPlayer(randomCashier.Head.CFrame * CFrame.new(1, -0.7, 3))
+                        if localPlayer.Backpack:FindFirstChild("Combat") then
+                            playerChar.Humanoid:EquipTool(localPlayer.Backpack.Combat)
+                            combatTool = playerChar.Combat
+                        elseif playerChar:FindFirstChild("Combat") then
+                            combatTool = playerChar.Combat
+                        end
+                        repeat
+                            task.wait()
+                            tpPlayer(randomCashier.Head.CFrame * CFrame.new(1, -0.7, 3))
+                            combatTool:Activate()
+                        until randomCashier.Humanoid.Health < 0 or not randomCashier
+                        collectNearbyCash()
+                        task.wait(0.4)
+                    until not flags.autoRob
+                end
             end
         )
     end
