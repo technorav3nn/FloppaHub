@@ -167,7 +167,7 @@ end
 local allItems = {}
 local allItemsKeys = {}
 
-function populateItems()
+local function populateItems()
     for _, v in pairs(game.Workspace:GetChildren()) do
         if string.find(v.Name, " | ") then
             allItems[v.Name] = {

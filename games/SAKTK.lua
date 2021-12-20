@@ -15,7 +15,7 @@ local function safeLoadstring(name, url)
     if (not success) then
         player:Kick(string.format("Failed to load library (%s). HttpError: %s", name, content))
         return function()
-            wait(9e9)
+            task.wait(9e9)
         end
     end
 
@@ -23,7 +23,7 @@ local function safeLoadstring(name, url)
     if (not func) then
         player:Kick(string.format("Failed to load library (%s). SyntaxError: %s", name, err))
         return function()
-            wait(9e9)
+            task.wait(9e9)
         end
     end
 
@@ -50,23 +50,10 @@ local function disableAntiCheatTactics()
 
             if not checkcaller() and method == "Kick" then
                 print("Got the kick lol")
-                wait(9e9)
+                task.wait(9e9)
             end
             return oldNameCall(Self, ...)
         end
-    )
-end
-
-local function sendNotification(opts)
-    local CoreGui = game:GetService("StarterGui")
-
-    CoreGui:SetCore(
-        "SendNotification",
-        {
-            Title = opts.title and opts.title or "No title",
-            Text = opts.text and opts.text or "No Text",
-            Duration = opts.duration and opts.duration or opts.duration
-        }
     )
 end
 
@@ -80,7 +67,7 @@ local function populateGunList()
                 func = function()
                     local oldGunPos = v.CFrame
                     v.CanCollide = false
-                    v.CFrame = playerChar.HumanoidRootPart.CFrame
+                    v.CFrame = players.LocalPlayer.Character.HumanoidRootPart.CFrame
                     wait(0.1)
                     v.CFrame = oldGunPos
                     v.CanCollide = true
@@ -174,50 +161,11 @@ do
             end
         }
     )
-    playerFolder:AddButton(
-        {
-            text = "Anti Tails Blind",
-            callback = function()
-                game:GetService("StarterGui").TailsPopup:Destroy()
-            end
-        }
-    )
-
-    playerFolder:AddButton(
-        {
-            text = "No Slenderman Jumpscare",
-            callback = function()
-                game:GetService("Workspace").Killers.Slenderman["Damage and Behaviour"].Slender:Destroy()
-            end
-        }
-    )
 end
 
 local combatFolder = window:AddFolder("Combat")
 do
-    combatFolder:AddToggle(
-        {
-            text = "Player ESP",
-            callback = function(bool)
-                ESP:Toggle(bool)
-                ESP.Players = bool
-            end
-        }
-    )
-    combatFolder:AddToggle(
-        {
-            text = "Killer ESP",
-            callback = function(bool)
-                ESP:Toggle(bool)
-                ESP.Players = false
-                ESP.Killers = bool
-            end
-        }
-    )
-    combatFolder:AddDivider()
     combatFolder:AddLabel({text = "Gun mods"})
-    combatFolder:AddDivider()
-
     combatFolder:AddToggle(
         {
             text = "Shotgun Bullets",
@@ -243,10 +191,10 @@ do
         {
             text = "Full auto",
             callback = function(bool)
-                for i, v in pairs(getgc()) do
+                for _, v in pairs(getgc()) do
                     if type(v) == "function" then
                         local b = debug.getupvalues(v)
-                        for i2, v2 in pairs(b) do
+                        for _, v2 in pairs(b) do
                             if type(v2) == "table" and rawget(v2, "ammo") then
                                 v2.is_auto = bool
                             end
@@ -315,7 +263,103 @@ do
             end
         }
     )
+    combatFolder:AddToggle(
+        {
+            text = "No Animations",
+            flag = "noAnims",
+            callback = function()
+                local old
+                old =
+                    hookfunction(
+                    require(Weapon).play_animation,
+                    function(self, AnimName)
+                        if AnimName == "Fire" and library.flags.noAnims then
+                            local AnimFunc = self.animations[AnimName]
+                            hookfunction(
+                                AnimFunc,
+                                function()
+                                end
+                            )
+                        end
+                        return old(self, AnimName)
+                    end
+                )
+            end
+        }
+    )
+
+    combatFolder:AddDivider()
+
+    playerFolder:AddButton(
+        {
+            text = "Anti Tails Blind",
+            callback = function()
+                game:GetService("StarterGui").TailsPopup:Destroy()
+            end
+        }
+    )
+
+    playerFolder:AddButton(
+        {
+            text = "No Slenderman Jumpscare",
+            callback = function()
+                game:GetService("Workspace").Killers.Slenderman["Damage and Behaviour"].Slender:Destroy()
+            end
+        }
+    )
 end
+
+ESP.Players = false
+ESP.Killers = false
+ESP:Toggle(true)
+
+local visualsFolder = window:AddFolder("Visuals")
+do
+    visualsFolder:AddToggle(
+        {
+            text = "Player ESP",
+            callback = function(bool)
+                ESP.Players = bool
+            end
+        }
+    )
+    visualsFolder:AddToggle(
+        {
+            text = "Killer ESP",
+            callback = function(bool)
+                ESP.Killers = bool
+            end
+        }
+    )
+    visualsFolder:AddDivider()
+    visualsFolder:AddToggle(
+        {
+            text = "Tracers",
+            callback = function(bool)
+                ESP.Tracers = bool
+            end
+        }
+    )
+    visualsFolder:AddToggle(
+        {
+            text = "Boxes",
+            state = true,
+            callback = function(bool)
+                ESP.Boxes = bool
+            end
+        }
+    )
+    visualsFolder:AddToggle(
+        {
+            text = "Names",
+            state = true,
+            callback = function(bool)
+                ESP.Names = bool
+            end
+        }
+    )
+end
+
 local giversFolder = window:AddFolder("Givers")
 do
     giversFolder:AddList(
