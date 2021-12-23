@@ -141,6 +141,34 @@ ESP.Sleigh = false
 
 ESP:Toggle(true)
 
+-- // Player Target Functions
+local Targeter = {}
+
+function Targeter:BagPlayer(playerName)
+    local function buyBag()
+        local bag = game:GetService("Workspace").Ignored.Shop["[BrownBag] - $25"]
+        localPlayer.Character.HumanoidRootPart.CFrame = bag.Head.CFrame
+        task.wait(0.1)
+        fireclickdetector(bag.ClickDetector, math.huge)
+        task.wait()
+    end
+    local targetPlayer = game.Players[playerName]
+    if targetPlayer then
+        if not localPlayer.Character:FindFirstChild("[BrownBag]") then
+            buyBag()
+        end
+        local tool =
+            localPlayer.Backpack:FindFirstChild("[BrownBag]") or localPlayer.Character:FindFirstChild("[BrownBag]")
+
+        tool.Parent = localPlayer.Character
+        repeat
+            localPlayer.Character["[BrownBag]"]:Activate()
+            targetPlayer.Character.HumanoidRootPart.CFrame = localPlayer.Character.HumanoidRootPart.CFrame
+            task.wait()
+        until targetPlayer.Character:FindFirstChild("Christmas_Sock")
+    end
+end
+
 -- // Auto Rob Functions
 local function getCashiers()
     local filteredCashiers = {}

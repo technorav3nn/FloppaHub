@@ -8,15 +8,19 @@ local runService = game:GetService("RunService")
 local localPlayer = players.LocalPlayer
 local playerChar = localPlayer.Character or localPlayer.Character:Wait()
 
--- // Library Components
-local cmdText = nil
-
 -- // Flag System
 local flags = {}
 
--- // Say Message Function
+-- // Component table
+local components = {}
+
+-- // Functions
 local function sayMessage(msg)
-    game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, "All")
+    game.Players:Chat(msg)
+end
+
+local function tpPlayer(x, y, z)
+    localPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
 end
 
 local Material =
@@ -39,10 +43,22 @@ local trollingTab =
 do
     trollingTab.Label({Text = "Spammer"})
     do
-        cmdText =
+        components["cmdText"] =
             trollingTab.TextField(
             {
                 Text = "Command"
+            }
+        )
+
+        trollingTab.Slider(
+            {
+                Text = "Interval",
+                Min = 0,
+                Max = 15,
+                Def = 0,
+                Callback = function(value)
+                    flags.chatInterval = value
+                end
             }
         )
         trollingTab.Toggle(
@@ -78,6 +94,36 @@ do
     end
 end
 
+local tpTab =
+    Material.New(
+    {
+        Title = "Teleports"
+    }
+)
+do
+    tpTab.Button(
+        {
+            Text = "Tp to House",
+            Callback = function()
+                tpPlayer(
+                    -41.0244217,
+                    7.21364641,
+                    50.0500374,
+                    -0.999963284,
+                    -6.5356403e-08,
+                    0.00856808294,
+                    -6.53975434e-08,
+                    1,
+                    -4.52153381e-09,
+                    -0.00856808294,
+                    -5.08169906e-09,
+                    -0.999963284
+                )
+            end
+        }
+    )
+end
+
 runService.Heartbeat:Connect(
     function()
         if flags.spamRegen then
@@ -85,8 +131,8 @@ runService.Heartbeat:Connect(
                 fireclickdetector(game:GetService("Workspace").Terrain["_Game"].Admin.Regen.ClickDetector, math.huge)
             end
         end
-        if flags.commandSpam then
-            sayMessage(cmdText:GetText())
+        if flags.commandSpam and task.wait(flags.chatInterval or 0) then
+            sayMessage(components["cmdText"]:GetText())
             localPlayer.Chatted:Wait()
         end
         if flags.loopGetAdmin then

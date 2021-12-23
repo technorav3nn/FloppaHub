@@ -19,7 +19,6 @@ for k, _ in pairs(colors) do
 end
 
 local venyx = library.new("Floppa Hub | Prison Life", 5013109572)
-
 -- themes
 local themes = {
     Background = Color3.fromRGB(24, 24, 24),
@@ -38,6 +37,8 @@ local ragePage = venyx:addPage("Rage", 5012544693)
 local tpPage = venyx:addPage("Teleports", 5012544693)
 local themePage = venyx:addPage("Theme", 5012544693)
 local settingsPage = venyx:addPage("Settings", 5012544693)
+
+local respawnToggle
 
 local colorSec = themePage:addSection("Colors")
 
@@ -312,7 +313,8 @@ do
         end
     )
     local respawnToggle
-    respawnToggle = playerSec:addToggle(
+    respawnToggle =
+        playerSec:addToggle(
         "Respawn where you died",
         false,
         function(bool)
