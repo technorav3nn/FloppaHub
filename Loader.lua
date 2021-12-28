@@ -104,7 +104,8 @@ local gamesTbl = {
     [402122991] = "RedwoodPrison",
     [155382109] = "SAKTK.lua",
     [3725149043] = "SuperDoomspire",
-    [192800] = "WorkAtAPizzaPlace"
+    [192800] = "WorkAtAPizzaPlace",
+    [7860844204] = "LifeSentenceRemake"
 }
 
 local function httpGet(url)
