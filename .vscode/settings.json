@@ -17,6 +17,7 @@
         "fireproximityprompt",
         "newcclosure",
         "Drawing",
-        "getcallingscript"
+        "getcallingscript",
+        "syn"
     ]
 }

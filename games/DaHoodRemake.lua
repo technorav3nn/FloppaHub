@@ -70,11 +70,6 @@ function flags:SetFlag(name, value)
     flags[name] = value
 end
 
--- // Anti Cheat Bypass (CREDITS TO STEFANUK12!)
-loadstring(
-    game:HttpGet("https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Games/Da%20Hood/AntiCheatBypass.lua")
-)()
-
 -- // Services
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
@@ -141,6 +136,9 @@ ESP.Sleigh = false
 
 ESP:Toggle(true)
 
+-- // Anti Cheat Bypass Loaded
+local acBypassLoaded = false
+
 -- // Player Target Functions
 local Targeter = {}
 
@@ -199,6 +197,8 @@ local function tpPlayer(cf)
     playerChar.HumanoidRootPart.CFrame = cf
 end
 
+-- // Aiming Module
+
 -- // UI Components
 local win =
     SolarisLib:New(
@@ -255,6 +255,23 @@ do
                         end
                     end
                 )
+            end
+        )
+        playerCombatSec:Toggle(
+            "Anti Grab",
+            false,
+            "antiGrab",
+            function(bool)
+                flags.antiGrab = bool
+                local function onChildAdded()
+                    if game.Players.LocalPlayer.Character:FindFirstChild("GRABBING_CONSTRAINT") and flags.antiGrab then
+                        game.Players.LocalPlayer.Character.GRABBING_CONSTRAINT:Destroy()
+                    end
+                end
+                if flags.antiGrab then
+                    onChildAdded()
+                end
+                playerChar.ChildAdded:Connect(onChildAdded)
             end
         )
     end
@@ -360,6 +377,14 @@ do
             1,
             "walkspeedSlider",
             function(t)
+                if not acBypassLoaded then
+                    loadstring(
+                        game:HttpGet(
+                            "https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Games/Da%20Hood/AntiCheatBypass.lua"
+                        )
+                    )()
+                    acBypassLoaded = true
+                end
                 localPlayer.Character.Humanoid.WalkSpeed = t
             end
         )
@@ -371,6 +396,14 @@ do
             1,
             "jumpPowerSlider",
             function(t)
+                if not acBypassLoaded then
+                    loadstring(
+                        game:HttpGet(
+                            "https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Games/Da%20Hood/AntiCheatBypass.lua"
+                        )
+                    )()
+                    acBypassLoaded = true
+                end
                 localPlayer.Character.Humanoid.JumpPower = t
             end
         )
@@ -418,13 +451,9 @@ do
                 end
             end
         )
-        worldViewingSec:Toggle(
+        worldViewingSec:Button(
             "Full Bright",
-            false,
-            "fBright",
-            function(bool)
-                flags.fullBright = bool
-
+            function()
                 local lighting = game:GetService("Lighting")
                 local function doLighting()
                     if flags.fullBright then
@@ -435,9 +464,7 @@ do
                         lighting.Bloom.Intensity = 0.1
                     end
                 end
-                if flags.fullBright then
-                    doLighting()
-                end
+                doLighting()
                 lighting.Changed:Connect(doLighting)
             end
         )
@@ -465,7 +492,6 @@ do
                         if #cashiers == 0 then
                             repeat
                                 cashiers = getCashiers()
-                                print("WAiting")
 
                                 task.wait()
                             until #cashiers ~= 0
@@ -551,6 +577,21 @@ do
             "names",
             function(bool)
                 ESP.Names = bool
+            end
+        )
+    end
+end
+
+local aimingTab = win:Tab("Aiming")
+do
+    local silentAimSec = aimingTab:Section("Silent Aim")
+    do
+        silentAimSec:Toggle(
+            "Toggle Silent Aim",
+            false,
+            "toggleSilentAim",
+            function(bool)
+                flags.silentAimToggle = bool
             end
         )
     end

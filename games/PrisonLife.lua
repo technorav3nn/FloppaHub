@@ -50,7 +50,7 @@ function flags:SetFlag(flagName, value)
     flags[flagName] = value
 end
 
-function killPlayer(Player)
+local function killPlayer(Player)
     pcall(
         function()
             if
@@ -120,7 +120,6 @@ function killPlayer(Player)
 
             game:GetService("ReplicatedStorage").ShootEvent:FireServer(FireEvent, Gun)
             Gun.Parent = game.Players.LocalPlayer.Character
-            game.Players.LocalPlayer.Character["Remington 870"]:Destroy()
         end
     )
 end
