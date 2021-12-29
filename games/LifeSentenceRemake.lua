@@ -582,12 +582,42 @@ do
 
                             for _, v in ipairs(robbables) do
                                 print("ROBBABLE " .. v.Name)
+                                game.Workspace.CurrentCamera.CFrame =
+                                    CFrame.new(
+                                    59.2179489,
+                                    16.2882061,
+                                    55.3996391,
+                                    0.999958932,
+                                    0.00893059094,
+                                    -0.00157470687,
+                                    -1.16415336e-10,
+                                    0.173648477,
+                                    0.984807611,
+                                    0.00906836055,
+                                    -0.984767139,
+                                    0.173641339
+                                )
                                 tpPlayer(v.Door.CFrame)
                                 task.wait(0.2)
                                 firePrompt(v.Door.Attachment.ProximityPrompt)
                                 task.wait(0.3)
                                 collectNearCash()
                                 task.wait()
+                                game.Workspace.CurrentCamera.CFrame =
+                                    CFrame.new(
+                                    59.2179489,
+                                    16.2882061,
+                                    55.3996391,
+                                    0.999958932,
+                                    0.00893059094,
+                                    -0.00157470687,
+                                    -1.16415336e-10,
+                                    0.173648477,
+                                    0.984807611,
+                                    0.00906836055,
+                                    -0.984767139,
+                                    0.173641339
+                                )
                                 if not flags.autoRob then
                                     break
                                 end
