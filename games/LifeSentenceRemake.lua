@@ -502,6 +502,8 @@ do
                             game:GetService("ReplicatedStorage").Events.LockerEvent:FireServer("Take", item)
                             task.wait(0.2)
                             localPlayer.Character.HumanoidRootPart.CFrame = oldCf
+                            lockerItems = getAllLockerItems()
+                            lockerTakeDropdown:Refresh(lockerItems, true)
                         end
                     end
                 end
@@ -532,6 +534,8 @@ do
                     local tool = localPlayer.Backpack:FindFirstChild(flags.lockerStoreItem)
                     if tool then
                         storeItem(tool)
+                    elseif localPlayer.Character:FindFirstChild(flags.lockerStoreItem) then
+                        storeItem(localPlayer.Character:FindFirstChild(flags.lockerStoreItem))
                     end
                 end
             )
@@ -667,6 +671,32 @@ do
                     end
                 )
             end
+            otherTrollingSection:Toggle(
+                "Make Workshop Song Lag",
+                false,
+                "lagWork",
+                function(bool)
+                    flags.lagWork = bool
+                    task.spawn(
+                        function()
+                            while flags.lagWork and task.wait(0.1) do
+                                if not flags.lagWork then
+                                    break
+                                end
+                                --- @type Sound
+                                local sound = nil
+                                for _, v in ipairs(game.Workspace:GetDescendants()) do
+                                    if v.Name == "Song1" and v.Parent.Name == "Radio" and v:IsA("Sound") then
+                                        sound = v
+                                        break
+                                    end
+                                end
+                                sound.TimePosition = math.random(1, 100)
+                            end
+                        end
+                    )
+                end
+            )
         end
     end
 
@@ -831,12 +861,12 @@ do
                     local oldCf = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
                         CFrame.new(186.46301269531, 7.7288360595703, -113.45082092285)
-                    task.wait(0.1)
+                    task.wait(0.3)
                     fireproximityprompt(
                         game:GetService("Workspace").WorkBench.MainPart.Attachment.ProximityPrompt,
                         math.huge
                     )
-                    task.wait(0.2)
+                    task.wait(0.3)
                     game:GetService("ReplicatedStorage").Events.CraftEvent:FireServer(flags.gunToCraft .. "Frame")
                     task.wait(0.3)
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = oldCf

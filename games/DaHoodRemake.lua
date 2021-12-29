@@ -9,7 +9,7 @@ local function getAllShopItems()
     local returnKeys = {}
 
     local shopPath = game:GetService("Workspace").Ignored.Shop
-    for _, item in pairs(shopPath:GetChildren()) do
+    for _, item in ipairs(shopPath:GetChildren()) do
         if item:IsA("Model") and item:FindFirstChildOfClass("ClickDetector") then
             returnTable[item.Name] = {
                 func = function(humanoidRootPart)
@@ -170,7 +170,7 @@ end
 -- // Auto Rob Functions
 local function getCashiers()
     local filteredCashiers = {}
-    for _, cashier in pairs(game:GetService("Workspace").Cashiers:GetChildren()) do
+    for _, cashier in ipairs(game:GetService("Workspace").Cashiers:GetChildren()) do
         if (cashier.Humanoid.Health > 0) and cashier:FindFirstChild("Head") then
             table.insert(filteredCashiers, cashier)
         end
@@ -180,7 +180,7 @@ end
 
 local function collectNearbyCash()
     local droppedCash = game:GetService("Workspace").Ignored.Drop
-    for _, v in pairs(droppedCash:GetDescendants()) do
+    for _, v in ipairs(droppedCash:GetDescendants()) do
         if
             v:IsA("ClickDetector") and
                 (v.Parent.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= 18
@@ -197,7 +197,60 @@ local function tpPlayer(cf)
     playerChar.HumanoidRootPart.CFrame = cf
 end
 
--- // Aiming Module
+-- // Aiming Stuff
+local Aiming =
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Universal/Aiming/Module.lua"))()
+Aiming.TeamCheck(false)
+
+-- // Aim Settings
+local aimLockSettings = {
+    Enabled = false,
+    Prediction = 0.165,
+    BeizerLock = {
+        Enabled = true,
+        Smoothness = 0.05,
+        CurvePoints = {
+            Vector2.new(0.83, 0),
+            Vector2.new(0.17, 1)
+        }
+    }
+}
+
+runService:BindToRenderStep(
+    "AimLock",
+    0,
+    function()
+        if aimLockSettings.Enabled and Aiming.Check() then
+            -- // Vars
+            local SelectedPart = Aiming.SelectedPart
+            local currentCamera = game.Workspace.CurrentCamera
+
+            -- // Hit to account prediction
+            local Hit = SelectedPart.CFrame + (SelectedPart.Velocity * aimLockSettings.Prediction)
+            local HitPosition = Hit.Position
+
+            -- //
+            local BeizerLock = aimLockSettings.BeizerLock
+            if (BeizerLock.Enabled) then
+                -- // Work out in 2d
+                local Vector, _ = currentCamera:WorldToViewportPoint(HitPosition)
+                local Vector2D = Vector2.new(Vector.X, Vector.Y)
+
+                -- // Aim
+                Aiming.BeizerCurve.AimTo(
+                    {
+                        TargetPosition = Vector2D,
+                        Smoothness = BeizerLock.Smoothness,
+                        CurvePoints = BeizerLock.CurvePoints
+                    }
+                )
+            else
+                -- // Set the camera to face towards the Hit
+                currentCamera.CFrame = CFrame.lookAt(currentCamera.CFrame.Position, HitPosition)
+            end
+        end
+    end
+)
 
 -- // UI Components
 local win =
@@ -584,14 +637,47 @@ end
 
 local aimingTab = win:Tab("Aiming")
 do
-    local silentAimSec = aimingTab:Section("Silent Aim")
+    local aimLockToggleSec = aimingTab:Section("Aim Lock")
     do
-        silentAimSec:Toggle(
-            "Toggle Silent Aim",
+        aimLockToggleSec:Toggle(
+            "Toggle Aim Lock",
             false,
-            "toggleSilentAim",
+            "toggleLock",
             function(bool)
-                flags.silentAimToggle = bool
+                flags.aimLockToggle = bool
+            end
+        )
+        aimLockToggleSec:Bind(
+            "Aim Lock Bind",
+            Enum.KeyCode.E,
+            true,
+            "lockBind",
+            function(t)
+                if flags.aimLockToggle then
+                    aimLockSettings.Enabled = t
+                end
+            end
+        )
+    end
+    local aimLockConfigSec = aimingTab:Section("Lock Configuration")
+    do
+        aimLockConfigSec:Toggle(
+            "Show FOV",
+            false,
+            "showFOV",
+            function(bool)
+                Aiming.ShowFOV = bool
+            end
+        )
+        aimLockConfigSec:Slider(
+            "FOV Size",
+            25,
+            60,
+            160,
+            1,
+            "aimLockFov",
+            function(t)
+                Aiming.FOV = t
             end
         )
     end
