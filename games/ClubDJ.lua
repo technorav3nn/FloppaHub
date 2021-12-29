@@ -9,6 +9,7 @@ local MainWindow = Library:CreateWindow "Floppa Hub"
 local AudioLag = false
 local LoopSkipping = false
 local AutoDJ = false
+local scrubValue = nil
 
 for _, v in pairs(game.CoreGui:GetChildren()) do
     if v.Name == "ScreenGui" then
@@ -16,6 +17,12 @@ for _, v in pairs(game.CoreGui:GetChildren()) do
     end
 end
 
+game:GetService("Players").LocalPlayer.Functions.SetTextNotification:Fire(
+    "FLOPPA HUB HAS LOADED! ENJOY THE SCRIPT! - Death_Blows",
+    10
+)
+
+--- @type Sound
 local Audio = game:GetService("Workspace")["GLOBAL_SOUND"]
 local Main = MainWindow:AddFolder("Main")
 
@@ -43,22 +50,24 @@ Main:AddToggle(
         state = false,
         callback = function(b)
             LoopSkipping = b
-            while wait() do
-                if LoopSkipping then
-                    local djText = game:GetService("Workspace").DJBar.SurfaceGui.Container.TimeLeft.Text
-                    local splitted = djText:split("DJ: ")[2]
-                    local currentDj = splitted:split(" -")[1]
+            task.spawn(
+                function()
+                    while LoopSkipping and task.wait() do
+                        local djText = game:GetService("Workspace").DJBar.SurfaceGui.Container.TimeLeft.Text
+                        local splitted = djText:split("DJ: ")[2]
+                        local currentDj = splitted:split(" -")[1]
 
-                    if currentDj == game.Players.LocalPlayer.Name then
-                        return
+                        if currentDj == game.Players.LocalPlayer.Name then
+                            return
+                        end
+
+                        local ab = Audio.TimeLength
+                        Audio.TimePosition = ab
+                        task.wait(0.2)
+                        Audio.TimePosition = 0
                     end
-
-                    local ab = Audio.TimeLength
-                    Audio.TimePosition = ab
-                    wait(0.2)
-                    Audio.TimePosition = 0
                 end
-            end
+            )
         end
     }
 )
@@ -73,12 +82,17 @@ Main:AddToggle(
         end
     }
 )
-Main:AddSlider(
+local scrubber
+scrubber =
+    Main:AddSlider(
     {
         text = "Scrub song",
         flag = "slider",
         callback = function(val)
-            wait(0.1)
+            task.wait(0.1)
+            if val == Audio.TimeLength then
+                scrubber:SetValue(1)
+            end
             Audio.TimePosition = val
         end,
         min = 0,
@@ -86,12 +100,20 @@ Main:AddSlider(
         value = Audio.TimePosition
     }
 )
+
+local lbl =
+    Main:AddLabel(
+    {
+        text = "Current Position" .. tostring(Audio.TimePosition)
+    }
+)
+
 Main:AddButton(
     {
         text = "Skip",
         flag = "button",
         callback = function()
-            print "pressed"
+            Audio.TimePosition = Audio.TimeLength + 1
         end
     }
 )
@@ -100,6 +122,18 @@ Main:AddButton(
         text = "Nuke",
         flag = "button",
         callback = function()
+            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                "[BOT] Nuke initialized. Created by Death_Blows. Use Floppa Hub!",
+                "All"
+            )
+            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                "[BOT] Nuke initialized. Created by Death_Blows. Use Floppa Hub!",
+                "All"
+            )
+            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                "[BOT] Nuke initialized. Created by Death_Blows. Use Floppa Hub!",
+                "All"
+            )
             local testArray = {
                 "1/5 votes for the nuke!",
                 "2/5 votes for the nuke!",
@@ -109,17 +143,13 @@ Main:AddButton(
             }
             local active = true
 
-            local coro =
-                coroutine.wrap(
+            coroutine.wrap(
                 function()
-                    while true do
-                        wait(5)
-                        local A_1 =
-                            "This server will be nuked! Type !nuke to nuke it!!!This server will be nuked! Type !nuke to nuke it!!!This server will be nuked! Type !nuke to nuke it!!! Type !nuke to nuke it!!!"
-
-                        local A_2 = "All"
-                        local Event = game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest
-                        Event:FireServer(A_1, A_2)
+                    while task.wait(5) do
+                        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                            "This server will be nuked! Type !nuke to nuke it!!!This server will be nuked! Type !nuke to nuke it!!!This server will be nuked! Type !nuke to nuke it!!! Type !nuke to nuke it!!!",
+                            "All"
+                        )
                         if not active then
                             coroutine.yield()
                         end
@@ -130,7 +160,7 @@ Main:AddButton(
             local alreadyVoted = {}
 
             game.Players.PlayerChatted:Connect(
-                function(chattype, player, msg)
+                function(_, player, msg)
                     if msg == "!nuke" then
                         local playerName = player.Name
                         if (alreadyVoted[playerName]) then
@@ -149,19 +179,44 @@ Main:AddButton(
                         Event:FireServer(A_1, A_2)
                         table.remove(testArray, 1)
 
-                        if (#testArray == 0) then
-                            while wait() do
-                                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
-                                    CFrame.new(27.751092910767, 10.22109889941, 66.054611206055)
-                                local A_1 = "SERVER NUKED BY FLOPPA HUB"
-                                local A_2 = "All"
-                                local Event =
-                                    game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest
-                                Event:FireServer(A_1, A_2)
+                        if #testArray == 0 then
+                            game:GetService("RunService").Heartbeat:Connect(
+                                function()
+                                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                                        CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position) *
+                                        CFrame.Angles(0, math.rad(180), 0)
+                                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                                        CFrame.new(
+                                        27.7239628,
+                                        10.0660343,
+                                        67.0371628,
+                                        0.999975085,
+                                        -0.00207312847,
+                                        0.00674481038,
+                                        -0.000199317801,
+                                        0.947186291,
+                                        0.320683837,
+                                        -0.00705341063,
+                                        -0.320677191,
+                                        0.947162271
+                                    )
 
-                                game:GetService("RunService").RenderStepped:wait()
-                                game:GetService("Workspace")["GLOBAL_SOUND"].TimePosition = math.random(1, 100)
-                            end
+                                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                                        CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position) *
+                                        CFrame.Angles(0, math.rad(180), 0)
+
+                                    game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                                        "SERVER NUKED BY FLOPPA HUB",
+                                        "All"
+                                    )
+
+                                    task.wait()
+                                    game:GetService("Workspace")["GLOBAL_SOUND"].TimePosition = math.random(1, 100)
+                                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                                        CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position) *
+                                        CFrame.Angles(0, math.rad(180), 0)
+                                end
+                            )
                         end
                     end
                 end
@@ -194,18 +249,31 @@ SongUtilFolder:AddBox(
     }
 )
 
-Library:Init()
-
-while true do
-    Audio = game:GetService("Workspace")["GLOBAL_SOUND"]
-    wait()
-    if AutoDJ then
-        wait()
-        local A_1 = 6
-        local Event = game:GetService("ReplicatedStorage").Connection
-        Event:InvokeServer(A_1)
-    end
-    if AudioLag then
-        game:GetService("Workspace")["GLOBAL_SOUND"].TimePosition = math.random(1, 100)
-    end
+local function roundNumber(num, div)
+    div = div or 1
+    return (math.floor((num / div) + 0.5) * div)
 end
+
+Library:Init()
+task.spawn(
+    function()
+        game:GetService("RunService").Heartbeat:Connect(
+            function()
+                Audio = game:GetService("Workspace")["GLOBAL_SOUND"]
+                if AutoDJ then
+                    local A_1 = 6
+                    local Event = game:GetService("ReplicatedStorage").Connection
+                    Event:InvokeServer(A_1)
+                end
+                if AudioLag then
+                    game:GetService("Workspace")["GLOBAL_SOUND"].TimePosition = math.random(1, 100)
+                end
+                if not Audio.IsLoaded then
+                    scrubber:SetValue(1)
+                end
+                scrubber.max = Audio.TimeLength
+                lbl.Text = "Current Position: " .. tostring(roundNumber(Audio.TimePosition))
+            end
+        )
+    end
+)

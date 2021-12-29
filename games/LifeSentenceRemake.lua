@@ -294,6 +294,16 @@ local function getAllBuyables()
     return ret
 end
 
+local function getAllGunNames()
+    local gunNamesRet = {}
+    local gunConstants = require(game:GetService("ReplicatedStorage").GunConfigs)
+    for gunName, _ in pairs(gunConstants) do
+        table.insert(gunNamesRet, gunName)
+    end
+    table.sort(gunNamesRet)
+    return gunNamesRet
+end
+
 local function getAllLockerItems()
     local ret = {}
     local lockerFolder = game:GetService("ReplicatedStorage").PlayerStats[localPlayer.Name].LockerFolder
@@ -582,42 +592,18 @@ do
 
                             for _, v in ipairs(robbables) do
                                 print("ROBBABLE " .. v.Name)
-                                game.Workspace.CurrentCamera.CFrame =
-                                    CFrame.new(
-                                    59.2179489,
-                                    16.2882061,
-                                    55.3996391,
-                                    0.999958932,
-                                    0.00893059094,
-                                    -0.00157470687,
-                                    -1.16415336e-10,
-                                    0.173648477,
-                                    0.984807611,
-                                    0.00906836055,
-                                    -0.984767139,
-                                    0.173641339
-                                )
+                                local camera = workspace.CurrentCamera
+
+                                camera.CFrame = v.Door.CFrame
+
+                                task.wait()
                                 tpPlayer(v.Door.CFrame)
                                 task.wait(0.2)
                                 firePrompt(v.Door.Attachment.ProximityPrompt)
                                 task.wait(0.3)
                                 collectNearCash()
-                                task.wait()
-                                game.Workspace.CurrentCamera.CFrame =
-                                    CFrame.new(
-                                    59.2179489,
-                                    16.2882061,
-                                    55.3996391,
-                                    0.999958932,
-                                    0.00893059094,
-                                    -0.00157470687,
-                                    -1.16415336e-10,
-                                    0.173648477,
-                                    0.984807611,
-                                    0.00906836055,
-                                    -0.984767139,
-                                    0.173641339
-                                )
+                                task.wait(0.3)
+
                                 if not flags.autoRob then
                                     break
                                 end
@@ -785,14 +771,13 @@ do
                                 local prompt = tool.Button.ProximityPrompt
                                 local oldCframe = localPlayer.Character.HumanoidRootPart.CFrame
                                 prompt.RequiresLineOfSight = false
-                                tpPlayer(prompt.Parent.CFrame + Vector3.new(0, -1, 0))
-                                localPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-                                task.wait(0.5)
-                                prompt:InputHoldBegin()
-                                task.wait()
-                                prompt:InputHoldEnd()
+                                tpPlayer(prompt.Parent.CFrame + Vector3.new(0, 3, 0))
+                                task.wait(0.3)
+                                fireproximityprompt(prompt, math.huge)
                                 task.wait()
                                 tpPlayer(oldCframe)
+                                localPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+
                                 prompt.RequiresLineOfSight = true
                             end
                         )
@@ -804,7 +789,7 @@ do
         do
             ammoBuySec:Dropdown(
                 "Choose Gun",
-                {"Spaz", "Glock", "Assault Rifle", "Sawed", "Uzi", "Flare", "Revolver"},
+                getAllGunNames(),
                 "",
                 "ammoChosen",
                 function(value)
@@ -846,6 +831,11 @@ do
                     local oldCf = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
                         CFrame.new(186.46301269531, 7.7288360595703, -113.45082092285)
+                    task.wait(0.1)
+                    fireproximityprompt(
+                        game:GetService("Workspace").WorkBench.MainPart.Attachment.ProximityPrompt,
+                        math.huge
+                    )
                     task.wait(0.2)
                     game:GetService("ReplicatedStorage").Events.CraftEvent:FireServer(flags.gunToCraft .. "Frame")
                     task.wait(0.3)
