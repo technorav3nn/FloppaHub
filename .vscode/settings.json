@@ -18,6 +18,8 @@
         "newcclosure",
         "Drawing",
         "getcallingscript",
-        "syn"
-    ]
+        "syn",
+        "getinfo"
+    ],
+    "lua.targetVersion": "5.2"
 }

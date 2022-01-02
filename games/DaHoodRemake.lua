@@ -83,6 +83,9 @@ local stepped = runService.Stepped
 local localPlayer = players.LocalPlayer
 local playerChar = localPlayer.Character or localPlayer.Character:Wait()
 
+-- // Control Variables
+local silentAimBindToggle = false
+
 -- // Solaris Loading
 local SolarisLib = loadstring(game:HttpGet("https://solarishub.dev/SolarisLib.lua"))()
 local sFlags = SolarisLib.Flags
@@ -251,6 +254,38 @@ runService:BindToRenderStep(
         end
     end
 )
+
+-- // Silent Aim Module
+local gameMt = getrawmetatable(game)
+local oldIndex = gameMt.__index
+local SilentAim =
+    loadstring(
+    game:HttpGetAsync(
+        "https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Universal/Experimental%20Silent%20Aim%20Module.lua"
+    )
+)()
+
+SilentAim.TeamCheck = false
+SilentAim.SilentAimEnabled = false
+SilentAim.ShowFOV = false
+
+setreadonly(gameMt, false)
+
+gameMt.__index =
+    newcclosure(
+    function(t, k)
+        if t:IsA("Mouse") and (k == "Hit" or k == "Target") then
+            if SilentAim.checkSilentAim() then
+                local selected = rawget(SilentAim, "Selected")
+                if selected and selected.Character and selected.Character:FindFirstChild("Head") then
+                    return (k == "Hit" and selected.Character.Head.CFrame or selected.Character.Head)
+                end
+            end
+        end
+        return oldIndex(t, k)
+    end
+)
+setreadonly(gameMt, true)
 
 -- // UI Components
 local win =
@@ -637,7 +672,83 @@ end
 
 local aimingTab = win:Tab("Aiming")
 do
-    local aimLockToggleSec = aimingTab:Section("Aim Lock")
+    local silentAimSec = aimingTab:Section("Silent Aim")
+    do
+        silentAimSec:Toggle(
+            "Toggle Silent Aim",
+            false,
+            "toggleSilentAim",
+            function(bool)
+                flags.silentAimToggle = bool
+            end
+        )
+        silentAimSec:Bind(
+            "Silent Aim Bind",
+            Enum.KeyCode.E,
+            false,
+            "lockBind",
+            function(t)
+                if flags.silentAimToggle then
+                    silentAimBindToggle = not silentAimBindToggle
+                    SilentAim.SilentAimEnabled = silentAimBindToggle
+                end
+            end
+        )
+    end
+
+    local silentAimConfigSec = aimingTab:Section("Silent Aim Config")
+    do
+        silentAimConfigSec:Dropdown(
+            "Target Part",
+            {"Head", "HumanoidRootPart"},
+            "Head",
+            "targetPartSIlent",
+            function(v)
+                SilentAim.TargetPart = v
+            end
+        )
+        silentAimConfigSec:Toggle(
+            "Visible Check",
+            true,
+            "showFOVSilent",
+            function(bool)
+                SilentAim.VisibleCheck = bool
+            end
+        )
+        silentAimConfigSec:Toggle(
+            "Show FOV",
+            false,
+            "silentAimShowFOV",
+            function(bool)
+                SilentAim.ShowFOV = bool
+            end
+        )
+        silentAimConfigSec:Slider(
+            "FOV Size",
+            20,
+            100,
+            10,
+            1,
+            "silentAimFovSize",
+            function(t)
+                SilentAim.FOV = t
+            end
+        ):Set(60)
+
+        silentAimConfigSec:Slider(
+            "Hit Chance",
+            80,
+            100,
+            10,
+            1,
+            "silentAimHitChance",
+            function(t)
+                SilentAim.FOV = t
+            end
+        ):Set(100)
+    end
+
+    local aimLockToggleSec = aimingTab:Section("Bezier Aim Lock")
     do
         aimLockToggleSec:Toggle(
             "Toggle Aim Lock",
@@ -679,7 +790,7 @@ do
             function(t)
                 Aiming.FOV = t
             end
-        )
+        ):Set(60)
     end
 end
 
