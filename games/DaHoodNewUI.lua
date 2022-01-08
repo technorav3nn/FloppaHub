@@ -7,6 +7,9 @@ function flags:SetFlag(name, value)
     flags[name] = value
 end
 
+-- // Variables
+local bought = 0
+
 -- // Services
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
@@ -72,8 +75,51 @@ ESP.Names = true
 
 ESP:Toggle(true)
 
--- // Anti Cheat Bypass Loaded
-local acBypassLoaded = false
+-- // Aiming (Credit to Stefanuk12!)
+
+-- // Remove annoying messagebox (I credited you dw)
+hookfunction(
+    messagebox,
+    function()
+    end
+)
+
+-- // Load Aiming Module
+local Aiming = loadstring(game:HttpGet("https://raw.githubusercontent.com/Stefanuk12/Aiming/main/Load.lua"))()()
+Aiming.ShowCredits = false
+Aiming.Settings.Enabled = false
+Aiming.Settings.FOVSettings.ShowFOV = false
+
+local AimingSelected = Aiming.Selected
+local AimingChecks = Aiming.Checks
+
+-- // Hook
+local __index
+__index =
+    hookmetamethod(
+    game,
+    "__index",
+    function(t, k)
+        -- // Check if it trying to get our mouse's hit or target
+        if (t:IsA("Mouse") and (k == "Hit" or k == "Target")) then
+            -- // If we can use the silent aim
+            if (AimingChecks.IsAvailable()) then
+                -- // Vars
+                local TargetPart = AimingSelected.Part
+
+                -- // Return modded val
+                if Library.flags.silentAimEnabled then
+                    return (k == "Hit" and TargetPart.CFrame or TargetPart)
+                else
+                    return __index(t, k)
+                end
+            end
+        end
+
+        -- // Return
+        return __index(t, k)
+    end
+)
 
 -- // Player Target Functions
 local Targeter = {}
@@ -160,21 +206,9 @@ local function buyItem(name, amount, rpDelay)
                 task.wait(0.2)
                 localPlayer.Character.HumanoidRootPart.CFrame =
                     game.Workspace.Ignored.Shop[name].Head.CFrame * CFrame.new(0, 4, 0)
-                task.wait(0.2)
-                local i = -1
-                repeat
-                    print(i, amount)
-
-                    fireclickdetector(game.Workspace.Ignored.Shop[name].ClickDetector)
-                    if not rpDelay then
-                        task.wait()
-                    else
-                        task.wait(tonumber(rpDelay))
-                    end
-
-                    i = i + 1
-                until i == amount + 1
-                task.wait()
+                task.wait(0.3)
+                fireclickdetector(game.Workspace.Ignored.Shop[name].ClickDetector)
+                task.wait(0.4)
                 localPlayer.Character.HumanoidRootPart.CFrame = oldCf
             end
         end
@@ -229,6 +263,86 @@ local function orderedPairs(t)
     -- in order
     return orderedNext, t, nil
 end
+
+local function forceResetPlayer()
+    for _, v in pairs(localPlayer.Character:GetChildren()) do
+        if v:IsA("BasePart") or v:IsA("Part") or v:IsA("MeshPart") then
+            if v.Name ~= "HumanoidRootPart" then
+                v:Destroy()
+            end
+        end
+    end
+end
+
+local function initGodMode()
+    localPlayer.Character.RagdollConstraints:Destroy()
+    local newFolder = Instance.new("Folder", localPlayer.Character)
+    newFolder.Name = "FULLY_LOADED_CHAR"
+    task.wait()
+    game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+end
+
+local function getAllItemsInBackpackAndCharacter()
+    local ret = {}
+    local retNames = {}
+    for _, tool in ipairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name ~= "Combat" then
+            if not tool:FindFirstChild("CantStore") then
+                table.insert(ret, tool)
+                table.insert(retNames, tool.Name)
+            end
+        end
+    end
+    for _, v in ipairs(game.Players.LocalPlayer.Character:GetChildren()) do
+        if v:IsA("Tool") and v.Name ~= "Combat" then
+            if not v:FindFirstChild("CantStore") then
+                table.insert(ret, v)
+                table.insert(retNames, v.Name)
+            end
+        end
+    end
+    return ret, retNames
+end
+
+local function getDrop(name, amount)
+    local itemDrops = game:GetService("Workspace").Ignored.ItemsDrop
+    local validNames = {"[Knife]", "[LockPicker]"}
+    if not table.find(validNames, name) then
+        messagebox("Invalid name of tool!", "Invalid name", 0)
+    else
+        local collected = 0
+        for _, drop in ipairs(itemDrops:GetChildren()) do
+            if drop:FindFirstChild(name) then
+                if collected == amount then
+                    break
+                end
+                firetouchinterest(
+                    localPlayer.Character.HumanoidRootPart,
+                    drop:FindFirstChildWhichIsA("TouchTransmitter", true).Parent,
+                    0
+                )
+                collected = collected + 1
+            end
+        end
+    end
+end
+
+local function calculateTax(money)
+    assert(type(money) == "number", "money is not a number | at calculateTax")
+    return math.floor((money / 100) * 70)
+end
+
+local function refreshDropdown(dropdown, newValues)
+    for _, v in ipairs(dropdown.values) do
+        dropdown:Remove(v)
+    end
+    for _, v in ipairs(newValues) do
+        dropdown:Remove(v)
+        dropdown:Add(v)
+    end
+end
+
+local items, itemNames = getAllItemsInBackpackAndCharacter()
 
 -- // Data
 local teleports = {
@@ -626,12 +740,233 @@ local animationValues = {
 }
 ]]
 local selectedSets = {}
+local oldToolSizes = {}
 
 -- // UI Components
 local Window = Library:CreateWindow("Floppa Hub", Vector2.new(492, 598), Enum.KeyCode.RightShift)
 do
     local playerTab = Window:CreateTab("Player")
     do
+        local movementSection = playerTab:CreateSector("Movement", "left")
+        do
+            movementSection:AddToggle(
+                "Fly",
+                false,
+                function(bool)
+                    local plr = game.Players.LocalPlayer
+                    local mouse = plr:GetMouse()
+
+                    if workspace:FindFirstChild("Core") then
+                        workspace.Core:Destroy()
+                    end
+
+                    local Core = Instance.new("Part")
+                    Core.Name = "Core"
+                    Core.Size = Vector3.new(0.05, 0.05, 0.05)
+
+                    spawn(
+                        function()
+                            Core.Parent = workspace
+                            local Weld = Instance.new("Weld", Core)
+                            Weld.Part0 = Core
+                            Weld.Part1 = localPlayer.Character.LowerTorso
+                            Weld.C0 = CFrame.new(0, 0, 0)
+                        end
+                    )
+
+                    workspace:WaitForChild("Core")
+
+                    local torso = workspace.Core
+                    flying = bool
+                    local speed = 50
+                    local keys = {a = false, d = false, w = false, s = false}
+                    local e1
+                    local e2
+                    local function start()
+                        local pos = Instance.new("BodyPosition", torso)
+                        local gyro = Instance.new("BodyGyro", torso)
+                        pos.Name = "EPIXPOS"
+                        pos.maxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        pos.position = torso.Position
+                        gyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+                        gyro.cframe = torso.CFrame
+                        repeat
+                            wait()
+                            localPlayer.Character.Humanoid.PlatformStand = true
+                            local new = gyro.cframe - gyro.cframe.p + pos.position
+                            if not keys.w and not keys.s and not keys.a and not keys.d then
+                                speed = 50
+                            end
+                            if keys.w then
+                                new = new + workspace.CurrentCamera.CoordinateFrame.lookVector * speed
+                                speed = speed + 0
+                            end
+                            if keys.s then
+                                new = new - workspace.CurrentCamera.CoordinateFrame.lookVector * speed
+                                speed = speed + 0
+                            end
+                            if keys.d then
+                                new = new * CFrame.new(speed, 0, 0)
+                                speed = speed + 0
+                            end
+                            if keys.a then
+                                new = new * CFrame.new(-speed, 0, 0)
+                                speed = speed + 0
+                            end
+                            if speed > 10 then
+                                speed = 50
+                            end
+                            pos.position = new.p
+                            if keys.w then
+                                gyro.cframe =
+                                    workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(-math.rad(speed * 0), 0, 0)
+                            elseif keys.s then
+                                gyro.cframe =
+                                    workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(math.rad(speed * 0), 0, 0)
+                            else
+                                gyro.cframe = workspace.CurrentCamera.CoordinateFrame
+                            end
+                        until flying == false
+                        if gyro then
+                            gyro:Destroy()
+                        end
+                        if pos then
+                            pos:Destroy()
+                        end
+                        flying = false
+                        localPlayer.Character.Humanoid.PlatformStand = false
+                        speed = 50
+                    end
+                    e1 =
+                        mouse.KeyDown:Connect(
+                        function(key)
+                            if not torso or not torso.Parent then
+                                e1:Disconnect()
+                                e2:Disconnect()
+                                return
+                            end
+                            if key == "w" then
+                                keys.w = true
+                            elseif key == "s" then
+                                keys.s = true
+                            elseif key == "a" then
+                                keys.a = true
+                            elseif key == "d" then
+                                keys.d = true
+                            end
+                        end
+                    )
+                    e2 =
+                        mouse.KeyUp:Connect(
+                        function(key)
+                            if key == "w" then
+                                keys.w = false
+                            elseif key == "s" then
+                                keys.s = false
+                            elseif key == "a" then
+                                keys.a = false
+                            elseif key == "d" then
+                                keys.d = false
+                            end
+                        end
+                    )
+                    if bool then
+                        flying = true
+                        start()
+                    else
+                        flying = false
+                    end
+                end
+            ):AddKeybind(Enum.KeyCode.X)
+            movementSection:AddToggle(
+                "Noclip",
+                false,
+                function()
+                end
+            ):AddKeybind(Enum.KeyCode.V)
+        end
+
+        local godSection = playerTab:CreateSector("God", "right")
+        do
+            godSection:AddDropdown(
+                "Choose God Mode",
+                {"Only Guns", "Only Melee", "God Block", "No Ragdoll"},
+                "Only Guns",
+                false,
+                function()
+                end,
+                "godChosen"
+            )
+            godSection:AddButton(
+                "Apply",
+                function()
+                    local value = Library.flags.godChosen
+                    if not value then
+                        return
+                    end
+                    pcall(
+                        function()
+                            if value == "Only Melee" then
+                                flags.onlyMeleeGod = true
+                                forceResetPlayer()
+                            elseif value == "Only Guns" then
+                                flags.onlyGunsGod = true
+                                forceResetPlayer()
+                            elseif value == "God Block" then
+                                localPlayer.Character.BodyEffects.Defense.CurrentTimeBlock:Destroy()
+                            elseif value == "No Ragdoll" then
+                                flags.noRagdoll = true
+                                forceResetPlayer()
+                            end
+                        end
+                    )
+                end
+            )
+        end
+
+        local playerEffectsSection = playerTab:CreateSector("Visual Effects", "left")
+        do
+            playerEffectsSection:AddToggle(
+                "Anti Flashbang",
+                false,
+                function(bool)
+                    flags.antiFlash = bool
+                    local function onChildAdded(child)
+                        if flags.antiFlash and child.Name == "whiteScreen" then
+                            child:Destroy()
+                        end
+                    end
+                    localPlayer.PlayerGui.MainScreenGui.ChildAdded:Connect(onChildAdded)
+                end
+            )
+            playerEffectsSection:AddToggle(
+                "Anti Pepper Spray",
+                false,
+                function(bool)
+                    flags.antiPepper = bool
+                    local function onChildAdded(child)
+                        if flags.antiPepper and child.Name == "PepperSpray" then
+                            child:Destroy()
+                        end
+                    end
+                    localPlayer.PlayerGui.MainScreenGui.ChildAdded:Connect(onChildAdded)
+                end
+            )
+            playerEffectsSection:AddToggle(
+                "Anti Snowball Effect",
+                false,
+                function(bool)
+                    flags.antiSnow = bool
+                    local function onChildAdded(child)
+                        if flags.antiSnow and child.Name == "SNOWBALLFRAME" then
+                            child:Destroy()
+                        end
+                    end
+                    localPlayer.PlayerGui.MainScreenGui.ChildAdded:Connect(onChildAdded)
+                end
+            )
+        end
+
         local animationsSection = playerTab:CreateSector("Animations", "right")
         do
             animationsSection:AddDropdown(
@@ -659,7 +994,544 @@ do
                 end
             )
         end
+        local jailSec = playerTab:CreateSector("Jail", "left")
+        do
+            jailSec:AddButton(
+                "Unban",
+                function()
+                    forceResetPlayer()
+                end
+            )
+            jailSec:AddButton(
+                "Unjail",
+                function()
+                    local keyTool = game:GetService("Workspace").Ignored.Shop["[Key] - $125"]
+
+                    playerChar.HumanoidRootPart.CFrame = keyTool.Head.CFrame + Vector3.new(0, 2, 0)
+                    task.wait(0.4)
+                    fireclickdetector(keyTool.ClickDetector, math.huge)
+                    task.wait(0.1)
+                    if localPlayer.Backpack:FindFirstChild("[Key]") then
+                        playerChar.Humanoid:EquipTool(localPlayer.Backpack:FindFirstChild("[Key]"))
+                    end
+                end
+            )
+        end
     end
+
+    local selectionBox = Instance.new("SelectionBox")
+    selectionBox.LineThickness = 0.15
+    selectionBox.Color3 = Color3.new(1, 0, 0)
+
+    local toolReachBox = Instance.new("SelectionBox")
+    selectionBox.LineThickness = 0.15
+    selectionBox.Color3 = Color3.new(0, 0.466666, 1)
+
+    local combatTab = Window:CreateTab("Combat")
+    do
+        local mainSection = combatTab:CreateSector("Combat", "left")
+        do
+            mainSection:AddToggle(
+                "Auto Stomp",
+                false,
+                function()
+                end,
+                "autoStomp"
+            )
+            mainSection:AddToggle(
+                "Auto Block",
+                false,
+                function()
+                    if Library.flags.autoBlock then
+                        local Loop
+                        local loopFunction = function()
+                            local forbidden = {
+                                "[RPG]",
+                                "[SMG]",
+                                "[TacticalShotgun]",
+                                "[AK47]",
+                                "[AUG]",
+                                "[Glock]",
+                                "[Shotgun]",
+                                "[Flamethrower]",
+                                "[Silencer]",
+                                "[AR]",
+                                "[Revolver]",
+                                "[SilencerAR]",
+                                "[LMG]",
+                                "[P90]",
+                                "[DrumGun]",
+                                "[Double-Barrel SG]",
+                                "[Hamburger]",
+                                "[Chicken]",
+                                "[Pizza]",
+                                "[Cranberry]",
+                                "[Donut]",
+                                "[Taco]",
+                                "[Starblox Latte]",
+                                "[BrownBag]",
+                                "[Weights]",
+                                "[HeavyWeights]"
+                            }
+                            local Found = false
+                            for _, v in ipairs(game.Workspace.Players:GetChildren()) do
+                                if
+                                    (v.UpperTorso.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude <=
+                                        15
+                                 then
+                                    if
+                                        v.BodyEffects.Attacking.Value == true and
+                                            not table.find(forbidden, v:FindFirstChildWhichIsA("Tool").Name) and
+                                            v.Name ~= localPlayer.Name
+                                     then
+                                        Found = true
+                                        game:GetService("ReplicatedStorage").MainEvent:FireServer(
+                                            "Block",
+                                            localPlayer.Name
+                                        )
+                                    end
+                                end
+                            end
+                            if not Found then
+                                if localPlayer.Character.BodyEffects:FindFirstChild("Block") then
+                                    localPlayer.Character.BodyEffects.Block:Destroy()
+                                end
+                            end
+                        end
+                        local Start = function()
+                            Loop = game:GetService("RunService").Heartbeat:Connect(loopFunction)
+                        end
+                        local Pause = function()
+                            Loop:Disconnect()
+                        end
+                        Start()
+                        repeat
+                            wait()
+                        until not Library.flags.autoBlock
+                        Pause()
+                    end
+                end,
+                "autoBlock"
+            )
+            renderStepped:Connect(
+                function()
+                    if Library.flags.autoStomp then
+                        task.wait()
+                        game:GetService("ReplicatedStorage").MainEvent:FireServer("Stomp")
+                    end
+                end
+            )
+        end
+        local reachSection = combatTab:CreateSector("Reach", "left")
+        do
+            reachSection:AddToggle(
+                "Fist Reach",
+                false,
+                function(bool)
+                    if bool then
+                        for _, v in ipairs(game.Workspace:GetDescendants()) do
+                            if v:IsA("Seat") then
+                                v:Destroy()
+                            end
+                        end
+                        localPlayer.Character.LeftHand.Size = Vector3.new(50, 50, 50)
+                        localPlayer.Character.RightHand.Size = Vector3.new(50, 50, 50)
+                        localPlayer.Character.RightHand.Massless = true
+                        localPlayer.Character.LeftHand.Massless = true
+                        localPlayer.Character.RightHand.Transparency = 1
+                        localPlayer.Character.LeftHand.Transparency = 1
+
+                        selectionBox.Adornee = localPlayer.Character.LeftHand
+                        selectionBox.Parent = localPlayer.Character.LeftHand
+                    else
+                        localPlayer.Character.LeftHand.Size = Vector3.new(0.5, 0.5, 0.5)
+                        localPlayer.Character.RightHand.Size = Vector3.new(0.5, 0.5, 0.5)
+                        localPlayer.Character.RightHand.Massless = false
+                        localPlayer.Character.LeftHand.Massless = false
+                        localPlayer.Character.RightHand.Transparency = 0
+                        localPlayer.Character.LeftHand.Transparency = 0
+                    end
+                end
+            ):AddColorpicker(
+                selectionBox.Color3,
+                function(color)
+                    selectionBox.Color3 = color
+                end
+            )
+
+            local reachToggle =
+                reachSection:AddToggle(
+                "Tool Reach",
+                false,
+                function(bool)
+                    pcall(
+                        function()
+                            local toolToReach = Library.flags.selectedReachTool
+
+                            local tool =
+                                localPlayer.Backpack:FindFirstChild(toolToReach) or
+                                localPlayer.Character:FindFirstChild(toolToReach)
+                            if toolToReach == "" then
+                                tool = localPlayer.Character:FindFirstChildWhichIsA("Tool")
+                            end
+                            if tool then
+                                print("found tool")
+                                if bool then
+                                    local newBox = toolReachBox:Clone()
+                                    newBox.Parent = tool.Handle
+                                    newBox.Adornee = tool.Handle
+
+                                    if not oldToolSizes[tool.Name] then
+                                        oldToolSizes[tool.Name] = tool.Handle.Size
+                                    end
+
+                                    tool.Handle.Size = Vector3.new(50, 50, 50)
+                                    if tool.Handle.Transparency ~= 1 then
+                                        tool.Handle.Transparency = 1
+                                    end
+                                else
+                                    local oldSize = oldToolSizes[tool.Name]
+                                    if oldSize then
+                                        print(oldSize)
+                                        tool.Handle.Size = oldSize
+                                        tool.Handle:FindFirstChildWhichIsA("SelectionBox"):Destroy()
+                                        if tool.Handle.Transparency ~= 0 then
+                                            tool.Handle.Transparency = 0
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    )
+                end
+            )
+
+            local reachDrop =
+                reachToggle:AddDropdown(
+                itemNames,
+                itemNames[1],
+                false,
+                function()
+                end,
+                "selectedReachTool"
+            )
+            localPlayer.Backpack.ChildRemoved:Connect(
+                function()
+                    items, itemNames = getAllItemsInBackpackAndCharacter()
+                    refreshDropdown(reachDrop, itemNames)
+                end
+            )
+            localPlayer.Backpack.ChildAdded:Connect(
+                function()
+                    items, itemNames = getAllItemsInBackpackAndCharacter()
+                    refreshDropdown(reachDrop, itemNames)
+                end
+            )
+            localPlayer.Character.ChildRemoved:Connect(
+                function()
+                    items, itemNames = getAllItemsInBackpackAndCharacter()
+                    refreshDropdown(reachDrop, itemNames)
+                end
+            )
+            localPlayer.Character.ChildAdded:Connect(
+                function()
+                    items, itemNames = getAllItemsInBackpackAndCharacter()
+                    refreshDropdown(reachDrop, itemNames)
+                end
+            )
+            --[[
+            task.spawn(
+                function()
+                    local function update()
+                        items, itemNames = getAllItemsInBackpackAndCharacter()
+                        refreshDropdown(reachDrop, itemNames)
+                    end
+                    while task.wait(10) do
+                        local success, err = pcall(update)
+                        if not success then
+                            error(err)
+                        end
+                    end
+                end
+            )
+            --]]
+        end
+
+        local toolsSection = combatTab:CreateSector("Drops", "right")
+        do
+            toolsSection:AddDropdown(
+                "Drop Chosen",
+                {"[Knife]", "[LockPicker]"},
+                "[Knife]",
+                false,
+                function()
+                end,
+                "chosenDrop"
+            )
+            toolsSection:AddSlider(
+                "Amount To Get",
+                1,
+                1,
+                10,
+                1,
+                function()
+                end,
+                "amountOfDrop"
+            )
+            toolsSection:AddButton(
+                "Get Drop",
+                function()
+                    local dropToGet = Library.flags.chosenDrop
+                    local dropAmount = Library.flags.amountOfDrop
+                    getDrop(dropToGet, dropAmount)
+                end
+            )
+        end
+        local defenseSection = combatTab:CreateSector("Defense", "left")
+        do
+            defenseSection:AddToggle(
+                "Anti Jump Cooldown",
+                false,
+                function(bool)
+                    if bool then
+                        playerChar:FindFirstChildWhichIsA("Humanoid").Name = "Humz"
+                        playerChar:FindFirstChildWhichIsA("Humanoid").WalkSpeed = 17
+                    else
+                        playerChar:FindFirstChildWhichIsA("Humanoid").Name = "Humanoid"
+                        playerChar:FindFirstChildWhichIsA("Humanoid").WalkSpeed = 16
+                    end
+                end
+            )
+            defenseSection:AddToggle(
+                "Anti Slow",
+                false,
+                function(bool)
+                    flags.antiSlow = bool
+                    localPlayer.Character.BodyEffects.Movement.ChildAdded:Connect(
+                        function(child)
+                            if flags.antiSlow then
+                                child:Destroy()
+                            end
+                        end
+                    )
+                end
+            )
+            defenseSection:AddToggle(
+                "Anti Grab",
+                false,
+                function(bool)
+                    flags.antiGrab = bool
+                    local function onChildAdded()
+                        if game.Players.LocalPlayer.Character:FindFirstChild("GRABBING_CONSTRAINT") and flags.antiGrab then
+                            game.Players.LocalPlayer.Character.GRABBING_CONSTRAINT:Destroy()
+                        end
+                    end
+                    if flags.antiGrab then
+                        onChildAdded()
+                    end
+                    playerChar.ChildAdded:Connect(onChildAdded)
+                end
+            )
+        end
+        local gunSection = combatTab:CreateSector("Guns", "left")
+        do
+            gunSection:AddToggle(
+                "Auto Reload",
+                false,
+                function(bool)
+                    for _, v in ipairs(localPlayer.Character:GetChildren()) do
+                        --- @type NumberValue
+                        local ammoValue = v:FindFirstChild("Ammo")
+                        if ammoValue then
+                            if ammoValue.Value == 0 and bool then
+                                game:GetService("ReplicatedStorage").MainEvent:FireServer("Reload", v)
+                            end
+                        end
+                    end
+                end
+            )
+        end
+        local toolsSection = combatTab:CreateSector("Tools", "right")
+        do
+            toolsSection:AddButton(
+                "Equip All Tools",
+                function()
+                    for i, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+                        if v:IsA("Tool") then
+                            v.Parent = game.Players.LocalPlayer.Character
+                        end
+                    end
+                end
+            )
+            toolsSection:AddSeperator("Tool Trolling")
+            toolsSection:AddButton(
+                "Katana",
+                function()
+                    getDrop("[Knife]", 1)
+                    local knife = localPlayer.Backpack["[Knife]"]
+                    knife.GripPos = Vector3.new(2, -5, -1.5)
+                    knife.GripForward = Vector3.new(0, 0, 0)
+                    knife.GripRight = Vector3.new(1, 0, -3)
+                    knife.GripUp = Vector3.new(0, 0, 0)
+                    knife.Parent = localPlayer.Character
+                end
+            )
+        end
+        local silentAimSection = combatTab:CreateSector("Silent Aim", "left")
+        do
+            silentAimSection:AddToggle(
+                "Enabled",
+                false,
+                function(bool)
+                    Aiming.Settings.Enabled = bool
+                end,
+                "silentAimEnabled"
+            )
+            silentAimSection:AddSeperator("FOV Settings")
+            silentAimSection:AddToggle(
+                "Show FOV",
+                false,
+                function(bool)
+                    Aiming.Settings.FOVSettings.Enabled = bool
+                end,
+                "fieldOfViewEnabled"
+            ):AddColorpicker(
+                Aiming.Settings.FOVSettings.Colour,
+                function(color)
+                    Aiming.Settings.FOVSettings.Colour = color
+                end
+            )
+            silentAimSection:AddSlider(
+                "FOV Sides",
+                tonumber(Aiming.Settings.FOVSettings.Sides),
+                0,
+                40,
+                1,
+                function(value)
+                    Aiming.Settings.FOVSettings.Sides = value
+                end,
+                "fieldOfViewSides"
+            )
+            silentAimSection:AddSlider(
+                "FOV Size",
+                tonumber(Aiming.Settings.FOVSettings.Scale),
+                5,
+                300,
+                1,
+                function(value)
+                    Aiming.Settings.FOVSettings.Scale = value
+                end,
+                "fieldOfViewSides"
+            )
+        end
+    end
+
+    local farmingTab = Window:CreateTab("Farming")
+    do
+        local moneyFarmingSec = farmingTab:CreateSector("Money Farming", "left")
+        do
+            moneyFarmingSec:AddToggle(
+                "ATM Farm",
+                false,
+                function()
+                    if Library.flags.autoRob then
+                        repeat
+                            if not Library.flags.autoRob then
+                                break
+                            end
+                            task.wait()
+                            local cashiers = getCashiers()
+                            if #cashiers == 0 then
+                                repeat
+                                    cashiers = getCashiers()
+
+                                    task.wait()
+                                until #cashiers ~= 0
+                            end
+
+                            local randomCashier = cashiers[math.random(1, #cashiers)]
+
+                            local combatTool = nil
+                            tpPlayer(randomCashier.Head.CFrame * CFrame.new(1, -0.7, 3))
+                            if localPlayer.Backpack:FindFirstChild("Combat") then
+                                playerChar.Humanoid:EquipTool(localPlayer.Backpack.Combat)
+                                combatTool = playerChar.Combat
+                            elseif playerChar:FindFirstChild("Combat") then
+                                combatTool = playerChar.Combat
+                            end
+                            repeat
+                                task.wait()
+                                tpPlayer(randomCashier.Head.CFrame * CFrame.new(1, -0.7, 3))
+                                combatTool:Activate()
+                            until randomCashier.Humanoid.Health < 0 or not randomCashier
+                            collectNearbyCash()
+                            task.wait(0.4)
+                        until not Library.flags.autoRob
+                    end
+                end,
+                "autoRob"
+            )
+            moneyFarmingSec:AddToggle(
+                "Hospital Farm",
+                false,
+                function()
+                end,
+                "autoHospital"
+            )
+            moneyFarmingSec:AddToggle(
+                "Shoe Farm",
+                false,
+                function()
+                end,
+                "autoShoe"
+            )
+            moneyFarmingSec:AddSlider(
+                "Sell Shoes At",
+                1,
+                5,
+                20,
+                1,
+                function()
+                end,
+                "untilSell"
+            )
+        end
+        local statFarmingSec = farmingTab:CreateSector("Money Farming", "right")
+        do
+            statFarmingSec:AddToggle(
+                "Auto Lettuce",
+                false,
+                function()
+                end,
+                "autoLettuce"
+            )
+            statFarmingSec:AddToggle(
+                "Box Farm",
+                false,
+                function()
+                end,
+                "boxFarm"
+            ):AddKeybind(Enum.KeyCode.B)
+            statFarmingSec:AddToggle(
+                "Muscle Farm",
+                false,
+                function()
+                    if not Library.flags.muscleFarm then
+                        bought = 0
+                    end
+                end,
+                "muscleFarm"
+            ):AddDropdown(
+                teleports.Weights,
+                teleports.Weights[2],
+                false,
+                function()
+                end,
+                "selectedWeight"
+            )
+        end
+    end
+
     local visualsTab = Window:CreateTab("Visuals")
     do
         local espSec = visualsTab:CreateSector("ESP", "left")
@@ -779,7 +1651,7 @@ do
                                         end
 
                                         if type(ammo) == "number" then
-                                            buyItem(getAmmoName(itemName), ammo + 12, 0.2)
+                                            buyItem(getAmmoName(itemName), ammo, 0.4)
                                         end
                                         task.wait(0.1)
                                     end
@@ -801,18 +1673,34 @@ do
                         sector:AddButton(
                             "Buy Chosen",
                             function()
-                                buyItem(getToolName(Library.flags[teleportName .. "Item"]), 0)
+                                buyItem(getToolName(Library.flags[teleportName .. "Item"]))
                             end
                         )
                         if teleportName == "Guns" then
                             sector:AddSeperator("Ammo")
-                            sector:AddSlider("Amount To Buy", 1, 1, 25, 1, "amountOfAmmo")
+                            sector:AddSlider(
+                                "Amount To Buy",
+                                1,
+                                1,
+                                25,
+                                1,
+                                function()
+                                end,
+                                "amountOfAmmo"
+                            )
                             sector:AddButton(
                                 "Buy Ammo For Gun",
                                 function()
-                                    local ammoFlag = tonumber(Library.flags.amountOfAmmo or 1)
+                                    local ammoFlag = tonumber(Library.flags.amountOfAmmo) or 1
                                     if Library.flags["GunsItem"] then
-                                        buyItem(getAmmoName(Library.flags["GunsItem"]), ammoFlag + 12, 0.2)
+                                        task.spawn(
+                                            function()
+                                                for _ = 0, ammoFlag do
+                                                    buyItem(getAmmoName(Library.flags["GunsItem"]), ammoFlag)
+                                                    task.wait(0.3)
+                                                end
+                                            end
+                                        )
                                     end
                                 end
                             )
@@ -821,6 +1709,48 @@ do
                     i = i + 1
                 end
             end
+        end
+    end
+    local cashTab = Window:CreateTab("Cash")
+    do
+        local cashDropperSection = cashTab:CreateSector("Cash Dropper", "left")
+        do
+            local cashTaxLabel =
+                cashDropperSection:AddLabel(
+                "Cash Tax: " .. tostring(calculateTax(Library.flags.cashDropperAmount or 100))
+            )
+            cashDropperSection:AddSlider(
+                "Drop Amount",
+                100,
+                100,
+                10000,
+                1,
+                function(value)
+                    cashTaxLabel:Set("Cash Tax: " .. tostring(calculateTax(Library.flags.cashDropperAmount or 100)))
+                end,
+                "cashDropperAmount"
+            )
+            cashDropperSection:AddToggle(
+                "Start Dropper",
+                false,
+                function()
+                    task.spawn(
+                        function()
+                            while Library.flags.cashDropperToggle do
+                                local dropAmount =
+                                    Library.flags.cashDropperAmount or localPlayer.DataFolder.Currency.Value
+                                local args = {
+                                    "DropMoney",
+                                    dropAmount
+                                }
+                                game:GetService("ReplicatedStorage").MainEvent:FireServer(unpack(args))
+                                task.wait(6)
+                            end
+                        end
+                    )
+                end,
+                "cashDropperToggle"
+            )
         end
     end
 
@@ -833,3 +1763,194 @@ do
         end
     end
 end
+
+-- // Loops
+task.spawn(
+    function()
+        while task.wait(1) do
+            if Library.flags.muscleFarm then
+                local muscleToolName = getToolName(Library.flags.selectedWeight or teleports.Weights[1])
+                local name = "[" .. Library.flags.selectedWeight .. "]"
+                if not localPlayer.Backpack:FindFirstChild(name) and bought ~= 1 then
+                    buyItem(muscleToolName, 1)
+                    bought = 1
+                end
+                if localPlayer.Backpack:FindFirstChild(name) then
+                    localPlayer.Character.Humanoid:EquipTool(localPlayer.Backpack[name])
+                end
+                localPlayer.Character[name]:Activate()
+            end
+        end
+    end
+)
+
+task.spawn(
+    function()
+        while task.wait(1) do
+            if Library.flags.autoLettuce then
+                pcall(
+                    function()
+                        buyItem(getToolName("Lettuce"), 1)
+                        if localPlayer.Backpack:FindFirstChild("[Lettuce]") then
+                            localPlayer.Character.Humanoid:EquipTool(localPlayer.Backpack["[Lettuce]"])
+                        end
+                        task.wait(0.3)
+                        localPlayer.Character["[Lettuce]"]:Activate()
+                    end
+                )
+            end
+        end
+    end
+)
+
+task.spawn(
+    function()
+        while task.wait(0.2) do
+            if Library.flags.boxFarm then
+                tpPlayer(
+                    game.Workspace.MAP.Map.ArenaBOX.PunchingBagInGame["pretty ransom"].CFrame * CFrame.new(0, -1, 2)
+                )
+
+                if localPlayer.Backpack:FindFirstChild("Combat") then
+                    localPlayer.Backpack.Combat.Parent = localPlayer.Character
+                end
+                mouse1click()
+            end
+        end
+    end
+)
+
+-- // Event Listeners
+localPlayer.CharacterAdded:Connect(
+    function()
+        task.wait(0.6)
+        if localPlayer.Character:FindFirstChild("BodyEffects") then
+            if flags.onlyGunsGod then
+                initGodMode()
+                flags.onlyGunsGod = false
+                localPlayer.Character.BodyEffects.BreakingParts:Destroy()
+            end
+            if flags.onlyMeleeGod then
+                initGodMode()
+                flags.onlyMeleeGod = false
+                localPlayer.Character.BodyEffects.Armor:Destroy()
+                localPlayer.Character.BodyEffects.Defense:Destroy()
+            end
+            if flags.noRagdoll then
+                initGodMode()
+                flags.noRagdoll = false
+            end
+        end
+    end
+)
+
+for _, v in ipairs(localPlayer.Character:GetChildren()) do
+    --- @type NumberValue
+    local ammoValue = v:FindFirstChild("Ammo")
+    if ammoValue then
+        if ammoValue.Value == 0 and Library.flags.autoReload then
+            game:GetService("ReplicatedStorage").MainEvent:FireServer("Reload", v)
+        end
+        ammoValue.Changed:Connect(
+            function()
+                print("Ammo is value")
+                if ammoValue.Value == 0 and Library.flags.autoReload then
+                    print("Value is 0")
+
+                    game:GetService("ReplicatedStorage").MainEvent:FireServer("Reload", v)
+                end
+            end
+        )
+    end
+end
+
+localPlayer.Character.ChildAdded:Connect(
+    function(v)
+        --- @type NumberValue
+        local ammoValue = v:FindFirstChild("Ammo")
+        if ammoValue then
+            if ammoValue.Value == 0 and Library.flags.autoReload then
+                game:GetService("ReplicatedStorage").MainEvent:FireServer("Reload", v)
+            end
+            ammoValue.Changed:Connect(
+                function()
+                    print("Ammo is value")
+                    if ammoValue.Value == 0 and Library.flags.autoReload then
+                        print("Value is 0")
+
+                        game:GetService("ReplicatedStorage").MainEvent:FireServer("Reload", v)
+                    end
+                end
+            )
+        end
+    end
+)
+
+runService.Heartbeat:Connect(
+    function()
+        if Library.flags.autoHospital then
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(112, 25, -479)
+            task.wait(0.3)
+            local hospitalJob = game:GetService("Workspace").Ignored.HospitalJob
+
+            local clickDetectors = {
+                ["Green"] = game:GetService("Workspace").Ignored.HospitalJob.Green,
+                ["Red"] = game:GetService("Workspace").Ignored.HospitalJob.Red,
+                ["Blue"] = game:GetService("Workspace").Ignored.HospitalJob.Blue
+            }
+
+            for _, v in pairs(hospitalJob:GetChildren()) do
+                if string.find(v.Name, "Can") then
+                    local chosen
+                    if string.find(v.Name, "Red") then
+                        chosen = "Red"
+                    end
+                    if string.find(v.Name, "Blue") then
+                        chosen = "Blue"
+                    end
+                    if string.find(v.Name, "Green") then
+                        chosen = "Green"
+                    end
+                    fireclickdetector(clickDetectors[chosen].ClickDetector, 0)
+                    task.wait()
+                    fireclickdetector(
+                        game:GetService("Workspace").Ignored.HospitalJob:FindFirstChildOfClass("Model").ClickDetector,
+                        0
+                    )
+                end
+            end
+        end
+        if Library.flags.autoShoe then
+            local shoeAmount = 0
+            local untilSell = Library.flags.untilSell or 5
+
+            local drops = game:GetService("Workspace").Ignored.Drop
+            local sellPath =
+                game:GetService("Workspace").Ignored["Clean the shoes on the floor and come to me for cash"]
+
+            repeat
+                if not Library.flags.autoShoe then
+                    break
+                end
+                task.wait()
+                for _, drop in pairs(drops:GetChildren()) do
+                    if drop:IsA("MeshPart") then
+                        local dropCd = drop.ClickDetector
+                        playerChar.HumanoidRootPart.CFrame = drop.CFrame
+                        task.wait(0.2)
+                        fireclickdetector(dropCd, 0)
+                        shoeAmount = shoeAmount + 1
+                    end
+                end
+            until shoeAmount == untilSell
+            if shoeAmount == untilSell then
+                local sellCd = sellPath.ClickDetector
+                task.wait(0.3)
+                playerChar.HumanoidRootPart.CFrame = sellPath.HumanoidRootPart.CFrame
+                task.wait(0.3)
+                fireclickdetector(sellCd, 0)
+                shoeAmount = 0
+            end
+        end
+    end
+)

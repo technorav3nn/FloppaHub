@@ -19,7 +19,10 @@
         "Drawing",
         "getcallingscript",
         "syn",
-        "getinfo"
+        "getinfo",
+        "messagebox",
+        "printconsole",
+        "mouse1click"
     ],
     "lua.targetVersion": "5.2"
 }
