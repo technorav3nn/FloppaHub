@@ -26,6 +26,10 @@ local playerChar = localPlayer.Character or localPlayer.Character:Wait()
 -- // Dependencies
 local Library = loadstring(game:HttpGet("https://pastebin.com/raw/PTrFUueU"))()
 local ESP = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
+local NotifyLibrary =
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))()
+
+local NotifyFunc = NotifyLibrary.Notify
 
 -- // UI Theme
 Library.theme.accentcolor = Color3.new(0.011764, 0.521568, 1)
@@ -121,32 +125,28 @@ __index =
     end
 )
 
--- // Player Target Functions
-local Targeter = {}
-
-function Targeter:BagPlayer(playerName)
-    local function buyBag()
-        local bag = game:GetService("Workspace").Ignored.Shop["[BrownBag] - $25"]
-        localPlayer.Character.HumanoidRootPart.CFrame = bag.Head.CFrame
-        task.wait(0.1)
-        fireclickdetector(bag.ClickDetector, math.huge)
-        task.wait()
-    end
-    local targetPlayer = game.Players[playerName]
-    if targetPlayer then
-        if not localPlayer.Character:FindFirstChild("[BrownBag]") then
-            buyBag()
+-- // Get Player From String Function
+local function getPlayerFromString(str, useDisplayName)
+    for _, v in pairs(players:GetPlayers()) do
+        if useDisplayName then
+            if v.DisplayName:lower():sub(1, #str) == str:lower() then
+                return v
+            end
+        else
+            if v.Name:lower():sub(1, #str) == str:lower() then
+                return v
+            end
         end
-        local tool =
-            localPlayer.Backpack:FindFirstChild("[BrownBag]") or localPlayer.Character:FindFirstChild("[BrownBag]")
-
-        tool.Parent = localPlayer.Character
-        repeat
-            localPlayer.Character["[BrownBag]"]:Activate()
-            targetPlayer.Character.HumanoidRootPart.CFrame = localPlayer.Character.HumanoidRootPart.CFrame
-            task.wait()
-        until targetPlayer.Character:FindFirstChild("Christmas_Sock")
     end
+end
+
+-- // Notification Function
+local function notify(args)
+    NotifyFunc(args)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://6432593850"
+    sound.Parent = game:GetService("SoundService")
+    sound:Play()
 end
 
 -- // Auto Rob Functions
@@ -216,7 +216,154 @@ local function buyItem(name, amount, rpDelay)
 end
 
 local function tpPlayer(cf)
-    playerChar.HumanoidRootPart.CFrame = cf
+    localPlayer.Character.HumanoidRootPart.CFrame = cf
+end
+
+local function isCop()
+    return localPlayer.DataFolder:WaitForChild("Officer").Value == 1
+end
+
+-- // Player Target Functions
+local Targeter = {}
+
+function Targeter:BagPlayer(playerName)
+    local targetPlayer = game.Players[playerName]
+    if targetPlayer then
+        if not localPlayer.Character:FindFirstChild("[BrownBag]") then
+            buyItem(getToolName("BrownBag"), 1)
+        end
+        local tool =
+            localPlayer.Backpack:FindFirstChild("[BrownBag]") or localPlayer.Character:FindFirstChild("[BrownBag]")
+
+        tool.Parent = localPlayer.Character
+        repeat
+            localPlayer.Character["[BrownBag]"]:Activate()
+            targetPlayer.Character.HumanoidRootPart.CFrame = localPlayer.Character.HumanoidRootPart.CFrame
+            task.wait()
+        until targetPlayer.Character:FindFirstChild("Christmas_Sock")
+    end
+end
+
+local lastArrestMade = 0
+
+function Targeter:KillPlayer(player, stomp, arrest)
+    local rightHand = localPlayer.Character:FindFirstChild("RightHand")
+    local leftHand = localPlayer.Character:FindFirstChild("LeftHand")
+
+    local rightWrist = rightHand:FindFirstChild("RightWrist")
+    local leftWrist = leftHand:FindFirstChild("LeftWrist")
+
+    local oldWrists = {}
+
+    local oldCf = localPlayer.Character.HumanoidRootPart.CFrame
+
+    local combat = localPlayer.Character:FindFirstChild("Combat") or localPlayer.Backpack:FindFirstChild("Combat")
+    if combat.Parent == localPlayer.Backpack then
+        combat.Parent = localPlayer.Character
+    end
+    local cuffs =
+        isCop() and localPlayer.Backpack:FindFirstChild("Cuff") or localPlayer.Character:FindFirstChild("Cuff")
+    if cuffs.Parent == localPlayer.Character then
+        cuffs.Parent = localPlayer.Backpack
+    end
+
+    if player and not player.Character.BodyEffects["K.O"].Value then
+        workspace.CurrentCamera.CameraSubject = player.Character:FindFirstChildWhichIsA("Humanoid")
+
+        if rightWrist and leftWrist then
+            oldWrists.Right = rightWrist:Clone()
+            oldWrists.Left = leftWrist:Clone()
+
+            oldWrists.Right.Parent = nil
+            oldWrists.Left.Parent = nil
+
+            rightWrist:Destroy()
+            leftWrist:Destroy()
+        end
+        workspace.CurrentCamera.CameraSubject = player.Character:FindFirstChildWhichIsA("Humanoid")
+        local disconnected = false
+        local connection
+        connection =
+            heartBeat:Connect(
+            function()
+                tpPlayer(player.Character.Head.CFrame * CFrame.new(0, -15, 0))
+                combat:Activate()
+                rightHand.CFrame = player.Character.Head.CFrame
+                leftHand.CFrame = player.Character.Head.CFrame
+
+                if player.Character.BodyEffects["K.O"].Value or not player or not localPlayer then
+                    disconnected = true
+                    connection:Disconnect()
+                end
+            end
+        )
+
+        repeat
+            task.wait()
+        until disconnected
+
+        leftHand.CFrame = localPlayer.Character.LeftLowerArm.CFrame
+        rightHand.CFrame = localPlayer.Character.RightLowerArm.CFrame
+
+        rightHand.Size = Vector3.new(0.5, 0.5, 0.5)
+        leftHand.Size = Vector3.new(0.5, 0.5, 0.5)
+
+        oldWrists.Right.Parent = rightHand
+        oldWrists.Left.Parent = leftHand
+
+        workspace.CurrentCamera.CameraSubject = localPlayer.Character:FindFirstChildWhichIsA("Humanoid")
+        if stomp and isCop() then
+            notify({Title = "Floppa Hub", Description = "You cannot enable stomp if you're a cop!", Duration = 5})
+            return
+        elseif arrest and not isCop() then
+            notify({Title = "Floppa Hub", Description = "You cannot enable arrest if you're not a cop!", Duration = 5})
+            return
+        elseif arrest and stomp then
+            notify({Title = "Floppa Hub", Description = "You cannot enable arrest and stomp!", Duration = 5})
+            return
+        end
+
+        tpPlayer(CFrame.new(player.Character.UpperTorso.Position) * CFrame.new(0, 2.5, 0))
+
+        if
+            arrest and player and player.Character:FindFirstChild("Humanoid") and
+                player.Character.BodyEffects["K.O"].Value and
+                not player.Character:FindFirstChild("GRABBING_CONSTRAINT")
+         then
+            cuffs.Parent = localPlayer.Character
+            if os.clock() - lastArrestMade > 5 then
+                for _ = 1, 250 do
+                    if player.leaderstats.Wanted.Value <= 0 or player.DataFolder.Officer.Value ~= 0 then
+                        tpPlayer(oldCf)
+                        break
+                    end
+                    tpPlayer(CFrame.new(player.Character.UpperTorso.Position) * CFrame.new(0, 2.5, 0))
+                    task.wait(0.75)
+                    cuffs:Activate()
+                    task.wait()
+                    lastArrestMade = os.clock()
+                    if os.clock() - lastArrestMade > 5 then
+                        break
+                    end
+                end
+            end
+        end
+        if
+            stomp and player and player.Character:FindFirstChild("Humanoid") and
+                player.Character.BodyEffects["K.O"].Value and
+                not player.Character:FindFirstChild("GRABBING_CONSTRAINT")
+         then
+            tpPlayer(player.Character.HumanoidRootPart.CFrame)
+            task.wait(0.3)
+            repeat
+                task.wait()
+                tpPlayer(player.Character.Head.CFrame)
+                game:GetService("ReplicatedStorage").MainEvent:FireServer("Stomp")
+            until player.Character.BodyEffects.Dead.Value
+            task.wait(0.1)
+            localPlayer.Character.HumanoidRootPart.CFrame = oldCf
+        end
+    end
 end
 
 -- // Util Functions
@@ -1007,12 +1154,12 @@ do
                 function()
                     local keyTool = game:GetService("Workspace").Ignored.Shop["[Key] - $125"]
 
-                    playerChar.HumanoidRootPart.CFrame = keyTool.Head.CFrame + Vector3.new(0, 2, 0)
+                    localPlayer.Character.HumanoidRootPart.CFrame = keyTool.Head.CFrame + Vector3.new(0, 2, 0)
                     task.wait(0.4)
                     fireclickdetector(keyTool.ClickDetector, math.huge)
                     task.wait(0.1)
                     if localPlayer.Backpack:FindFirstChild("[Key]") then
-                        playerChar.Humanoid:EquipTool(localPlayer.Backpack:FindFirstChild("[Key]"))
+                        localPlayer.Character.Humanoid:EquipTool(localPlayer.Backpack:FindFirstChild("[Key]"))
                     end
                 end
             )
@@ -1424,6 +1571,74 @@ do
                 "fieldOfViewSides"
             )
         end
+        local targetSec = combatTab:CreateSector("Targeter", "right")
+        do
+            local currentTarget = targetSec:AddLabel("Target - None")
+
+            targetSec:AddTextbox(
+                "Target Name",
+                players:GetPlayers()[math.random(1, #players:GetPlayers())].Name,
+                function(value)
+                    local target = getPlayerFromString(value, Library.flags.useDisplayName)
+                    flags.target = target
+                    if target then
+                        currentTarget:Set("Target - " .. target.Name)
+                    end
+                end,
+                "targetPlayer"
+            )
+            targetSec:AddToggle(
+                "Use Display Name",
+                false,
+                function()
+                end,
+                "useDisplayName"
+            )
+            targetSec:AddSeperator("Target Functions")
+            targetSec:AddButton(
+                "Bag",
+                function()
+                    local target = flags.target
+                    if target then
+                        Targeter:BagPlayer(target.Name)
+                    end
+                end
+            )
+            targetSec:AddButton(
+                "Goto",
+                function()
+                    local target = flags.target
+                    if target and target.Character:FindFirstChild("HumanoidRootPart") then
+                        tpPlayer(target.Character:FindFirstChild("HumanoidRootPart").CFrame)
+                    end
+                end
+            )
+            targetSec:AddButton(
+                "Knock",
+                function()
+                    local target = flags.target
+                    if target then
+                        Targeter:KillPlayer(target, Library.flags.stompTarget, Library.flags.arrestTarget)
+                    end
+                end
+            )
+            targetSec:AddSeperator("Knock Options")
+
+            targetSec:AddToggle(
+                "Stomp Target",
+                false,
+                function()
+                end,
+                "stompTarget"
+            )
+            targetSec:AddToggle(
+                "Arrest Target",
+                false,
+                function()
+                end,
+                "arrestTarget"
+            )
+        end
     end
 
     local farmingTab = Window:CreateTab("Farming")
@@ -1711,9 +1926,9 @@ do
             end
         end
     end
-    local cashTab = Window:CreateTab("Cash")
+    local miscTab = Window:CreateTab("Misc")
     do
-        local cashDropperSection = cashTab:CreateSector("Cash Dropper", "left")
+        local cashDropperSection = miscTab:CreateSector("Cash Dropper", "left")
         do
             local cashTaxLabel =
                 cashDropperSection:AddLabel(
@@ -1760,6 +1975,11 @@ do
             settingsTab:CreateConfigSystem("left")
         else
             print("Your exploit doesnt support this.")
+        end
+        local creditsSection = settingsTab:CreateSector("Credits", "right")
+        do
+            creditsSection:AddLabel("Death_Blows - Creator")
+            creditsSection:AddLabel("Stefanuk12 - Aiming Module / AC Bypass")
         end
     end
 end
@@ -1954,3 +2174,5 @@ runService.Heartbeat:Connect(
         end
     end
 )
+
+notify({Title = "Floppa Hub", Description = "Floppa Hub has loaded. Enjoy!", Duration = 8})
