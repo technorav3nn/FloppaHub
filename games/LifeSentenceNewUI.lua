@@ -429,6 +429,86 @@ local function refreshDropdown(dropdown, newValues)
     dropdown:Set("")
 end
 
+-- // Targeting Functions
+local function killPlayer(player, stomp)
+    local toKill = player.Character
+
+    local disconnected = false
+    local connection
+
+    localPlayer.CharacterAdded:Connect(
+        function()
+            local tool = localPlayer.Character:FindFirstChild("Fists") or localPlayer.Backpack:FindFirstChild("Fists")
+            if not disconnected and tool then
+                tool.Parent = localPlayer.Character
+            end
+        end
+    )
+
+    connection =
+        runService.Heartbeat:Connect(
+        function()
+            local fistsTool =
+                localPlayer.Character:FindFirstChild("Fists") or localPlayer.Backpack:FindFirstChild("Fists")
+            if fistsTool.Parent == localPlayer.Backpack then
+                fistsTool.Parent = localPlayer.Character
+            end
+            fistsTool:Activate()
+            if
+                localPlayer.Character.Humanoid.Health <= 0 or not workspace:FindFirstChild(toKill.Name) or
+                    player.Backpack:WaitForChild("Stats").Downed.Value or
+                    not player or
+                    not game.Players:FindFirstChild(player.Name)
+             then
+                disconnected = true
+                connection:Disconnect()
+            end
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                toKill.HumanoidRootPart.CFrame + toKill.HumanoidRootPart.CFrame.lookVector * -1.5
+        end
+    )
+    repeat
+        task.wait()
+    until disconnected
+    if stomp then
+        connection =
+            runService.Heartbeat:Connect(
+            function()
+                if
+                    player.Backpack:WaitForChild("Stats").Dead.Value or not player or
+                        not game.Players:FindFirstChild(player.Name)
+                 then
+                    localPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                    connection:Disconnect()
+                end
+                if not localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    localPlayer.CharacterAdded:Wait()
+                    tpPlayer(toKill.Torso.CFrame)
+                end
+                game:GetService("ReplicatedStorage").Events.GunEvent:FireServer("EPress")
+            end
+        )
+        repeat
+            task.wait()
+        until not connection.Connected
+    end
+end
+
+-- // Get Player From String Function
+local function getPlayerFromString(str, useDisplayName)
+    for _, v in pairs(players:GetPlayers()) do
+        if useDisplayName then
+            if v.DisplayName:lower():sub(1, #str) == str:lower() then
+                return v
+            end
+        else
+            if v.Name:lower():sub(1, #str) == str:lower() then
+                return v
+            end
+        end
+    end
+end
+
 local items, itemNames = getAllItemsInBackpackAndCharacter()
 
 --#endregion
@@ -463,6 +543,7 @@ do
                 end
             )
         end
+
         local playerMovementSec = playerTab:CreateSector("Movement", "left")
         do
             playerMovementSec:AddSlider(
@@ -486,6 +567,65 @@ do
                     localPlayer.Character.Humanoid.JumpPower = value
                 end,
                 "playerJumpPower"
+            )
+        end
+        local targetSec = playerTab:CreateSector("Targeter", "left")
+        do
+            local currentTarget = targetSec:AddLabel("Target - None")
+
+            targetSec:AddTextbox(
+                "Target Name",
+                players:GetPlayers()[math.random(1, #players:GetPlayers())].Name,
+                function(value)
+                    local target = getPlayerFromString(value, Library.flags.useDisplayName)
+                    flags.target = target
+                    if target then
+                        currentTarget:Set("Target - " .. target.Name)
+                    end
+                end,
+                "targetPlayer"
+            )
+            targetSec:AddToggle(
+                "Use Display Name",
+                false,
+                function()
+                end,
+                "useDisplayName"
+            )
+            targetSec:AddSeperator("Target Functions")
+            targetSec:AddButton(
+                "Goto",
+                function()
+                    local target = flags.target
+                    if target and target.Character:FindFirstChild("HumanoidRootPart") then
+                        tpPlayer(target.Character:FindFirstChild("HumanoidRootPart").CFrame)
+                    end
+                end
+            )
+            targetSec:AddButton(
+                "Knock",
+                function()
+                    local target = flags.target
+                    if target then
+                        killPlayer(target, Library.flags.stompTarget)
+                    end
+                end
+            )
+            targetSec:AddSeperator("Knock Options")
+
+            targetSec:AddToggle(
+                "Stomp Target",
+                false,
+                function()
+                end,
+                "stompTarget"
+            )
+            targetSec:AddToggle(
+                "Arrest Target",
+                false,
+                function()
+                end,
+                "arrestTarget"
             )
         end
         local lockerTakeSec = playerTab:CreateSector("Taking from Locker", "right")
@@ -558,6 +698,19 @@ do
                 function()
                     items, itemNames = getAllItemsInBackpackAndCharacter()
                     refreshDropdown(lockerStoreDropdown, itemNames)
+                end
+            )
+        end
+        local trollingSec = playerTab:CreateSector("Trolling", "left")
+        do
+            trollingSec:AddButton(
+                "Kill All",
+                function()
+                    for _, player in ipairs(players:GetPlayers()) do
+                        if player.Name ~= localPlayer.Name then
+                            killPlayer(player, true)
+                        end
+                    end
                 end
             )
         end
