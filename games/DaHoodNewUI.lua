@@ -283,15 +283,20 @@ function Targeter:KillPlayer(player, stomp, arrest)
             leftWrist:Destroy()
         end
         workspace.CurrentCamera.CameraSubject = player.Character:FindFirstChildWhichIsA("Humanoid")
+
+        rightHand.Size = Vector3.new(3, 3, 3)
+        leftHand.Size = Vector3.new(3, 3, 3)
+
         local disconnected = false
         local connection
         connection =
             heartBeat:Connect(
             function()
                 tpPlayer(player.Character.Head.CFrame * CFrame.new(0, -15, 0))
+
                 combat:Activate()
-                rightHand.CFrame = player.Character.Head.CFrame
-                leftHand.CFrame = player.Character.Head.CFrame
+                rightHand.CFrame = player.Character.UpperTorso.CFrame
+                leftHand.CFrame = player.Character.UpperTorso.CFrame
 
                 if player.Character.BodyEffects["K.O"].Value or not player or not localPlayer then
                     disconnected = true
@@ -307,8 +312,8 @@ function Targeter:KillPlayer(player, stomp, arrest)
         leftHand.CFrame = localPlayer.Character.LeftLowerArm.CFrame
         rightHand.CFrame = localPlayer.Character.RightLowerArm.CFrame
 
-        rightHand.Size = Vector3.new(0.5, 0.5, 0.5)
-        leftHand.Size = Vector3.new(0.5, 0.5, 0.5)
+        rightHand.Size = Vector3.new(1, 1, 1)
+        leftHand.Size = Vector3.new(1, 1, 1)
 
         oldWrists.Right.Parent = rightHand
         oldWrists.Left.Parent = leftHand
