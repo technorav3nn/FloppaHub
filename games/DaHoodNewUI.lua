@@ -35,6 +35,8 @@ local NotifyFunc = NotifyLibrary.Notify
 Library.theme.accentcolor = Color3.new(0.011764, 0.521568, 1)
 Library.theme.background = "rbxassetid://2151741365"
 Library.theme.tilesize = 0.77
+Library.theme.accentcolor2 = Color3.new(0.011764, 0.521568, 1)
+Library.theme.backgroundcolor = Color3.fromRGB(20, 20, 20)
 
 -- // ESP Object Listeners
 if game:GetService("Workspace").Ignored:FindFirstChild("WinterMAP") then
@@ -2176,3 +2178,9 @@ runService.Heartbeat:Connect(
 )
 
 notify({Title = "Floppa Hub", Description = "Floppa Hub has loaded. Enjoy!", Duration = 8})
+
+-- // Remove gradient
+if game:GetService("CoreGui")["Floppa Hub"].main.top:FindFirstChild("UIGradient") then
+    game:GetService("CoreGui")["Floppa Hub"].main.top.UIGradient:Destroy()
+end
+game:GetService("CoreGui")["Floppa Hub"].main.top.BackgroundColor3 = Color3.fromRGB(30, 30, 30)

@@ -13,6 +13,11 @@ function flags:SetFlag(name, value)
     flags[name] = value
 end
 
+syn = {}
+syn.protect_gui = function(gui)
+    gui.Parent = game.CoreGui
+end
+
 -- // ESP Library and UI
 local ESP = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
 local Library = loadstring(game:HttpGet("https://pastebin.com/raw/PTrFUueU"))()
@@ -22,6 +27,7 @@ Library.theme.accentcolor = Color3.new(0.011764, 0.521568, 1)
 Library.theme.background = "rbxassetid://2151741365"
 Library.theme.tilesize = 0.77
 Library.theme.accentcolor2 = Color3.new(0.011764, 0.521568, 1)
+Library.theme.backgroundcolor = Color3.fromRGB(20, 20, 20)
 
 -- // Bypass Anti Cheat
 pcall(
@@ -402,6 +408,19 @@ local function getAllItemsInBackpackAndCharacter()
     return ret, retNames
 end
 
+local function getAllConsumeAbles()
+    local items, itemNames = getAllItemsInBackpackAndCharacter()
+    local newItems = {}
+
+    for _, item in ipairs(items) do
+        if item:FindFirstChild("ConsumeTime") then
+            table.insert(newItems, item)
+        end
+    end
+
+    return items
+end
+
 local function storeItem(tool)
     local oldCf = localPlayer.Character.HumanoidRootPart.CFrame
     localPlayer.Character.HumanoidRootPart.CFrame =
@@ -433,6 +452,8 @@ end
 local function killPlayer(player, stomp)
     local toKill = player.Character
 
+    local oldCf = localPlayer.Character.HumanoidRootPart.CFrame
+
     local disconnected = false
     local connection
 
@@ -448,12 +469,26 @@ local function killPlayer(player, stomp)
     connection =
         runService.Heartbeat:Connect(
         function()
+            if not player or not player.Character or not player.Character:FindFirstChild("Torso") then
+                disconnected = true
+                connection:Disconnect()
+            end
+            if player and player.Character and player.Character:FindFirstChildWhichIsA("Humanoid") then
+                workspace.CurrentCamera.CameraSubject = player.Character:FindFirstChildWhichIsA("Humanoid")
+            end
             local fistsTool =
                 localPlayer.Character:FindFirstChild("Fists") or localPlayer.Backpack:FindFirstChild("Fists")
             if fistsTool.Parent == localPlayer.Backpack then
                 fistsTool.Parent = localPlayer.Character
             end
+            tpPlayer(CFrame.new(player.Character.Torso.Position) * CFrame.new(0, -5.6, 0))
             fistsTool:Activate()
+            pcall(
+                function()
+                    firetouchinterest(fistsTool.Handle, player.Character:FindFirstChild("Head"), 0)
+                    firetouchinterest(fistsTool.Handle, player.Character:FindFirstChild("Head"), 1)
+                end
+            )
             if
                 localPlayer.Character.Humanoid.Health <= 0 or not workspace:FindFirstChild(toKill.Name) or
                     player.Backpack:WaitForChild("Stats").Downed.Value or
@@ -463,14 +498,15 @@ local function killPlayer(player, stomp)
                 disconnected = true
                 connection:Disconnect()
             end
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
-                toKill.HumanoidRootPart.CFrame + toKill.HumanoidRootPart.CFrame.lookVector * -1.5
         end
     )
     repeat
         task.wait()
     until disconnected
+    workspace.CurrentCamera.CameraSubject = localPlayer.Character:FindFirstChildWhichIsA("Humanoid")
     if stomp then
+        tpPlayer(toKill.Torso.CFrame)
+
         connection =
             runService.Heartbeat:Connect(
             function()
@@ -491,6 +527,8 @@ local function killPlayer(player, stomp)
         repeat
             task.wait()
         until not connection.Connected
+    else
+        tpPlayer(oldCf)
     end
 end
 
@@ -541,6 +579,48 @@ do
                         end
                     )
                 end
+            )
+
+            playerCombatSec:AddToggle(
+                "Auto Heal",
+                false,
+                function()
+                    task.spawn(
+                        function()
+                            while Library.flags.autoHeal and task.wait(0.5) do
+                                local foodItems = getAllConsumeAbles()
+                                if #foodItems == 0 then
+                                    repeat
+                                        task.wait()
+                                        foodItems = getAllConsumeAbles()
+                                    until #foodItems ~= 0
+                                end
+                                local randomItem = foodItems[math.random(1, #foodItems)]
+
+                                if
+                                    localPlayer.Character:FindFirstChildWhichIsA("Humanoid") and
+                                        localPlayer.Character.Humanoid.Health <= Library.flags.healthUntilHeal
+                                 then
+                                    if randomItem.Parent == localPlayer.Backpack then
+                                        randomItem.Parent = localPlayer.Character
+                                    end
+                                    randomItem:FindFirstChildWhichIsA("RemoteEvent"):FireServer("Consume")
+                                end
+                            end
+                        end
+                    )
+                end,
+                "autoHeal"
+            )
+            playerCombatSec:AddSlider(
+                "Health Until Auto Heal",
+                25,
+                40,
+                70,
+                1,
+                function()
+                end,
+                "healthUntilHeal"
             )
         end
 
@@ -754,26 +834,35 @@ do
                     if Library.flags.autoRob then
                         repeat
                             if not Library.flags.autoRob then
-                                break
+                                return
                             end
                             local robbables = getAllRobbables()
 
                             for _, v in ipairs(robbables) do
+                                if not Library.flags.autoRob then
+                                    return
+                                end
                                 print("ROBBABLE " .. v.Name)
                                 local camera = workspace.CurrentCamera
 
                                 camera.CFrame = v.Door.CFrame
 
                                 task.wait()
+                                if localPlayer.Character:FindFirstChildWhichIsA("Humanoid") then
+                                    camera.CameraSubject = v.Door
+                                end
                                 tpPlayer(v.Door.CFrame)
                                 task.wait(0.2)
                                 firePrompt(v.Door.Attachment.ProximityPrompt)
                                 task.wait(0.3)
                                 collectNearCash()
                                 task.wait(0.3)
+                                if localPlayer.Character:FindFirstChildWhichIsA("Humanoid") then
+                                    camera.CameraSubject = localPlayer.Character:FindFirstChildWhichIsA("Humanoid")
+                                end
 
                                 if not Library.flags.autoRob then
-                                    break
+                                    return
                                 end
                             end
                             task.wait(3)
@@ -1028,3 +1117,9 @@ task.spawn(
         end
     end
 )
+
+-- // Remove gradient
+if game:GetService("CoreGui")["Floppa Hub"].main.top:FindFirstChild("UIGradient") then
+    game:GetService("CoreGui")["Floppa Hub"].main.top.UIGradient:Destroy()
+end
+game:GetService("CoreGui")["Floppa Hub"].main.top.BackgroundColor3 = Color3.fromRGB(30, 30, 30)

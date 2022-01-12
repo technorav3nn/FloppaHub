@@ -24,6 +24,7 @@ Library.theme.accentcolor = Color3.new(0.011764, 0.521568, 1)
 Library.theme.background = "rbxassetid://2151741365"
 Library.theme.tilesize = 0.77
 Library.theme.accentcolor2 = Color3.new(0.011764, 0.521568, 1)
+Library.theme.backgroundcolor = Color3.fromRGB(20, 20, 20)
 
 -- // Bypass Anti Cheat
 pcall(
@@ -382,3 +383,9 @@ do
         end
     end
 end
+
+-- // Remove gradient
+if game:GetService("CoreGui")["Floppa Hub"].main.top:FindFirstChild("UIGradient") then
+    game:GetService("CoreGui")["Floppa Hub"].main.top.UIGradient:Destroy()
+end
+game:GetService("CoreGui")["Floppa Hub"].main.top.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
