@@ -373,6 +373,24 @@ local function tpPlayer(cf)
     localPlayer.Character.HumanoidRootPart.CFrame = cf
 end
 
+local function buyItem(name)
+    local tool = tools[name]
+    if tool then
+        local prompt = tool.Button.ProximityPrompt
+        local oldCframe = localPlayer.Character.HumanoidRootPart.CFrame
+        prompt.RequiresLineOfSight = false
+
+        tpPlayer(prompt.Parent.CFrame + Vector3.new(0, 3, 0))
+        task.wait(0.3)
+        fireproximityprompt(prompt, math.huge)
+        task.wait()
+        tpPlayer(oldCframe)
+        localPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+        prompt.RequiresLineOfSight = true
+    end
+end
+
 local function getAllLoot()
     local lootSpawners = game:GetService("Workspace").LootSpawns
     for _, loot in ipairs(lootSpawners:GetChildren()) do
@@ -446,6 +464,33 @@ local function refreshDropdown(dropdown, newValues)
     end
 
     dropdown:Set("")
+end
+
+local function getAllRocks()
+    local rocks = workspace.MiningRocks
+    local newRocks = {}
+    for _, rock in ipairs(rocks:GetChildren()) do
+        if rock:IsA("UnionOperation") and rock.Transparency == 0 then
+            table.insert(newRocks, rock)
+        end
+    end
+    return newRocks
+end
+
+local function mineRock(rock)
+    local tool = localPlayer.Character:FindFirstChild("Pickaxe") or localPlayer.Backpack:FindFirstChild("Pickaxe")
+    if not tool then
+        return
+    end
+    if tool and tool.Parent == localPlayer.Backpack then
+        tool.Parent = localPlayer.Character
+    end
+    local handle = tool.Handle
+    localPlayer.Character.HumanoidRootPart.CFrame = rock.CFrame + Vector3.new(0, 5, 0)
+    task.wait(0.1)
+    tool:Activate()
+    firetouchinterest(handle, rock, 0)
+    firetouchinterest(handle, rock, 1)
 end
 
 -- // Targeting Functions
@@ -853,10 +898,10 @@ do
                                 end
                                 tpPlayer(v.Door.CFrame)
                                 task.wait(0.2)
-                                firePrompt(v.Door.Attachment.ProximityPrompt)
+                                fireproximityprompt(v.Door.Attachment.ProximityPrompt, 0.1)
                                 task.wait(0.3)
                                 collectNearCash()
-                                task.wait(0.3)
+                                task.wait(0.4)
                                 if localPlayer.Character:FindFirstChildWhichIsA("Humanoid") then
                                     camera.CameraSubject = localPlayer.Character:FindFirstChildWhichIsA("Humanoid")
                                 end
@@ -871,6 +916,27 @@ do
                 end,
                 "autoRob"
             )
+            moneyFarmingSec:AddToggle(
+                "Auto Mine",
+                false,
+                function()
+                    task.spawn(
+                        function()
+                            while Library.flags.autoMine and task.wait() do
+                                for _, rock in ipairs(getAllRocks()) do
+                                    if not Library.flags.autoMine then
+                                        break
+                                    end
+                                    mineRock(rock)
+                                    task.wait(2.3)
+                                end
+                            end
+                        end
+                    )
+                end,
+                "autoMine"
+            )
+
             local lootFarmingSec = farmingTab:CreateSector("Loot Farming", "right")
             do
                 lootFarmingSec:AddToggle(
@@ -892,6 +958,9 @@ do
     end
     local itemsTab = Window:CreateTab("Items")
     do
+        local sets = {["Food Set"] = {"Milk", "Water", "Cola", "Burger"}}
+        local selectedSets = {}
+
         local itemBuySec = itemsTab:CreateSector("Item Buys", "left")
         do
             itemBuySec:AddDropdown(
@@ -926,6 +995,35 @@ do
                                 prompt.RequiresLineOfSight = true
                             end
                         )
+                    end
+                end
+            )
+            itemBuySec:AddSeperator("Predefined Sets")
+            for set, _ in pairs(sets) do
+                itemBuySec:AddToggle(
+                    set,
+                    false,
+                    function(bool)
+                        local isSetInTbl = table.find(selectedSets, set)
+                        if bool and not isSetInTbl then
+                            table.insert(selectedSets, set)
+                        elseif not bool and isSetInTbl then
+                            local idx = table.find(selectedSets, set)
+                            if idx then
+                                selectedSets[idx] = nil
+                            end
+                        end
+                    end
+                )
+            end
+            itemBuySec:AddButton(
+                "Buy Toggled Sets",
+                function()
+                    for _, setName in ipairs(selectedSets) do
+                        local set = sets[setName]
+                        for _, itemName in ipairs(set) do
+                            buyItem(itemName)
+                        end
                     end
                 end
             )
@@ -989,6 +1087,56 @@ do
                     task.wait(0.3)
                     game:GetService("ReplicatedStorage").Events.CraftEvent:FireServer(
                         Library.flags.gunToCraft .. "Frame"
+                    )
+                    task.wait(0.3)
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = oldCf
+                end
+            )
+        end
+        local learningSec = itemsTab:CreateSector("Researching", "right")
+        do
+            local guns = {"Spaz", "Assault Rifle", "TEC-9", "Garand"}
+            table.sort(guns)
+            learningSec:AddDropdown(
+                "Choose Gun to Craft",
+                guns,
+                "Spaz",
+                false,
+                function(value)
+                end,
+                "gunToResearch"
+            )
+            learningSec:AddButton(
+                "Begin Craft",
+                function()
+                    if not Library.flags.gunToResearch then
+                        return
+                    end
+                    local oldCf = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                        CFrame.new(
+                        -106.364197,
+                        4.9634347,
+                        -99.981987,
+                        1,
+                        4.59256704e-08,
+                        -8.15677195e-05,
+                        -4.59243594e-08,
+                        1,
+                        1.60913096e-08,
+                        8.15677195e-05,
+                        -1.60875633e-08,
+                        1
+                    )
+                    task.wait(0.3)
+                    fireproximityprompt(
+                        game:GetService("Workspace").ResearchTable.MainPart.Attachment.ProximityPrompt,
+                        math.huge
+                    )
+                    task.wait(0.3)
+                    game:GetService("ReplicatedStorage").Events.CraftEvent:FireServer(
+                        Library.flags.gunToResearch .. "Frame",
+                        "Learn"
                     )
                     task.wait(0.3)
                     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = oldCf
@@ -1076,7 +1224,53 @@ do
             )
         end
     end
-
+    local miscTab = Window:CreateTab("Misc")
+    do
+        local cashDropperAmount = 35
+        local cashDropperSection = miscTab:CreateSector("Cash Dropper", "left")
+        do
+            local cashTaxLabel =
+                cashDropperSection:AddLabel("Cash To Drop: " .. tostring(Library.flags.cashDropperAmount or 100))
+            cashDropperSection:AddSlider(
+                "Drop Amount",
+                35,
+                50,
+                10000,
+                1,
+                function()
+                    cashTaxLabel:Set("Cash To Drop: " .. tostring(Library.flags.cashDropperAmount or 100))
+                    cashDropperAmount = Library.flags.cashDropperAmount
+                end,
+                "cashDropperAmount"
+            )
+            cashDropperSection:AddTextbox(
+                "Custom Amount",
+                35,
+                function(v)
+                    if tonumber(v) and type(tonumber(v)) == "number" then
+                        cashDropperAmount = tonumber(v)
+                    end
+                end
+            )
+            cashDropperSection:AddToggle(
+                "Start Dropper",
+                false,
+                function()
+                    task.spawn(
+                        function()
+                            while Library.flags.cashDropperToggle do
+                                task.wait(6)
+                                game:GetService("ReplicatedStorage").Events.DropCash:FireServer(
+                                    tostring(cashDropperAmount)
+                                )
+                            end
+                        end
+                    )
+                end,
+                "cashDropperToggle"
+            )
+        end
+    end
     local settingsTab = Window:CreateTab("Settings")
     do
         if syn then
