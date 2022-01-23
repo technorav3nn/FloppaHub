@@ -522,7 +522,9 @@ local function killPlayer(player, stomp)
                 workspace.CurrentCamera.CameraSubject = player.Character:FindFirstChildWhichIsA("Humanoid")
             end
             local fistsTool =
-                localPlayer.Character:FindFirstChild("Fists") or localPlayer.Backpack:FindFirstChild("Fists")
+                (localPlayer.Character:FindFirstChild("Fists") or localPlayer.Backpack:FindFirstChild("Fists")) or
+                localPlayer.Character:FindFirstChild("Baton") or
+                localPlayer.Backpack:FindFirstChild("Baton")
             if fistsTool.Parent == localPlayer.Backpack then
                 fistsTool.Parent = localPlayer.Character
             end

@@ -1005,15 +1005,6 @@ for theme, color in pairs(themes) do
     )
 end
 
-colorSec:addToggle(
-    "Toggle Rainbow UI",
-    true,
-    function(bool)
-        flags:SetFlag("enableRainbow", bool)
-        print(flags["enableRainbow"])
-    end
-)
-
 venyx:SelectPage(venyx.pages[1], true)
 
 local t = 10
@@ -1021,16 +1012,6 @@ local r = math.random() * t
 
 runService.Heartbeat:Connect(
     function()
-        if flags["enableRainbow"] then
-            local hue = (tick() + r) % t / t
-            local color = Color3.fromHSV(hue, 1, 1)
-            venyx:setTheme("TextColor", color)
-            venyx:setTheme("Glow", color)
-        else
-            venyx:setTheme("TextColor", Color3.new(255, 255, 255))
-            venyx:setTheme("Glow", Color3.new(0, 0, 0))
-        end
-
         if flags["keyCardSniper"] then
             if game:GetService("Workspace")["Prison_ITEMS"].single:FindFirstChild("Key card", true) then
                 local ohInstance1 = workspace.Prison_ITEMS.single["Key card"].ITEMPICKUP

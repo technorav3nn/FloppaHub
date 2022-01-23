@@ -22,7 +22,11 @@
         "getinfo",
         "messagebox",
         "printconsole",
-        "mouse1click"
+        "mouse1click",
+        "mousemoveabs",
+        "mousemoverel",
+        "getconstants",
+        "getsenv"
     ],
     "lua.targetVersion": "5.2"
 }

@@ -26,6 +26,9 @@ Library.theme.tilesize = 0.77
 Library.theme.accentcolor2 = Color3.new(0.011764, 0.521568, 1)
 Library.theme.backgroundcolor = Color3.fromRGB(20, 20, 20)
 
+-- // Player Variables
+local localPlayer = game.Players.LocalPlayer
+
 -- // Bypass Anti Cheat
 pcall(
     function()
@@ -34,6 +37,34 @@ pcall(
 )
 
 --#region Functions
+local function getAllRobberyStatuses()
+    local robberies = {}
+    for _, v in ipairs(game.Workspace:GetChildren()) do
+        if v.Name == "Start Robbery" then
+            local robberyName = v.Head:FindFirstChildOfClass("Script").Name
+
+            local isRobberyOpen = v.BillboardGui.Text.Text == "Start Robbery"
+            local isRobberyClosed = v.BillboardGui.Text.Text:find("Cool")
+            local isRobberyInProgress = v.BillboardGui.Text.Text:find("Progress")
+
+            local status = ""
+
+            if isRobberyInProgress then
+                status = "Robbery In Progress"
+            elseif isRobberyClosed then
+                status = "Closed"
+            elseif isRobberyOpen then
+                status = "Open"
+            else
+                status = "Unknown"
+            end
+
+            robberies[robberyName] = status
+        end
+    end
+    return robberies
+end
+
 local function removeDuplicates(arr)
     local newArray = {}
     local checkerTbl = {}
@@ -72,6 +103,151 @@ local function getAllAmmoBuyables()
         end
     end
     return ammoBuyables, ammoBuyableNames
+end
+
+local function sellAllItems()
+    fireclickdetector(game:GetService("Workspace")["Sell Items"].Head.ClickDetector)
+    task.wait(1.2)
+    local pawnShopButtons = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("PawnGUI")
+    if pawnShopButtons then
+        for _, v in ipairs(game:GetService("Players").LocalPlayer.PlayerGui.PawnGUI.Frame.Frame:GetChildren()) do
+            if v:IsA("TextButton") then
+                print("hello")
+                mousemoveabs(v.Confirm.AbsolutePosition.X + 40, v.Confirm.AbsolutePosition.Y + 50)
+                task.wait(0.2)
+                mousemoverel(0, 3)
+                task.wait(0.1)
+                mouse1click()
+                task.wait(0.1)
+            end
+        end
+
+        local closeButton = game:GetService("Players").LocalPlayer.PlayerGui.PawnGUI.Frame.TextButton
+        mousemoveabs(closeButton.AbsolutePosition.X + 40, closeButton.AbsolutePosition.Y + 50)
+        mousemoverel(0, 3)
+        mouse1click()
+        task.wait()
+        mousemoveabs(500, 500)
+    end
+end
+
+local function collectNearbyCash()
+    for _, v in ipairs(game.Workspace:GetChildren()) do
+        if
+            v.Name == "Cash" and
+                (v.Part.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <=
+                    tonumber(v.Part:FindFirstChildOfClass("ClickDetector").MaxActivationDistance)
+         then
+            fireclickdetector(v.Part:FindFirstChildOfClass("ClickDetector"), math.huge)
+        elseif
+            v.Name == "ATM" and
+                (v.Main.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <=
+                    tonumber(v.Main.Two:FindFirstChildOfClass("ClickDetector").MaxActivationDistance)
+         then
+            fireclickdetector(v.Main.One.ClickDetector, math.huge)
+            fireclickdetector(v.Main.Two.ClickDetector, math.huge)
+        end
+    end
+end
+
+local function getAllCash()
+    local ret = {}
+    for _, v in ipairs(game.Workspace:GetChildren()) do
+        if v.Name == "Cash" and not v.PickedUp.Value then
+            table.insert(ret, v)
+        end
+    end
+    return ret
+end
+
+local function getMyCar()
+    local car = game.Workspace:FindFirstChild(string.format("%ssCar", localPlayer.Name))
+    if car then
+        return car
+    end
+end
+
+local function tpPlayer(cf, exitCar)
+    local car = getMyCar()
+    if not car then
+        return
+    end
+    car:SetPrimaryPartCFrame(cf + Vector3.new(0, 3, 0))
+    if exitCar then
+        localPlayer.Character.Humanoid.Jump = true
+    end
+end
+
+local function openAllPresents()
+    for _, v in ipairs(game.Workspace.Presents:GetChildren()) do
+        if not Library.flags.autoPresent then
+            break
+        end
+        if v.Name == "Present" and v.Transparency ~= 1 then
+            if Library.flags.sellAllItemsWhenFarm then
+                sellAllItems()
+            end
+            tpPlayer(v.CFrame + Vector3.new(0, 2, 0), false)
+            task.wait(0.4)
+            getMyCar().PrimaryPart.Anchored = true
+            fireclickdetector(v.ClickDetector, math.huge)
+            task.wait(0.6)
+            getMyCar().PrimaryPart.Anchored = false
+        end
+    end
+end
+
+local function startCashFarm()
+    for _, v in ipairs(getAllCash()) do
+        if not Library.flags.autoCollectDroppedCash then
+            break
+        end
+        tpPlayer(v.Part.CFrame + Vector3.new(0, 2, 0), false)
+        task.wait(0.2)
+        fireclickdetector(v.Part.Click, math.huge)
+        task.wait(0.2)
+    end
+end
+
+local function startAtmFarm()
+    for _, v in ipairs(workspace:GetChildren()) do
+        if not Library.flags.autoATM then
+            break
+        end
+        if v.Name == "ATM" and v.BillboardGui.Enabled then
+            pcall(
+                function()
+                    tpPlayer(v.ClickPart.CFrame + Vector3.new(0, 2, 0), false)
+                    task.wait(0.3)
+                    fireclickdetector(v.ClickPart.ClickDetector, math.huge)
+                    task.wait(1.2)
+                    collectNearbyCash()
+                    task.wait(0.3)
+                end
+            )
+        end
+    end
+end
+
+local function startDumpsterFarm()
+    for _, v in ipairs(workspace:GetChildren()) do
+        if not Library.flags.autoDumpsters then
+            break
+        end
+        if v.Name == "SearchableDumpster" and v.Closed.Value then
+            pcall(
+                function()
+                    tpPlayer(v.Union.CFrame + Vector3.new(0, 2, 0), false)
+                    task.wait(0.3)
+                    fireclickdetector(v.ClickPart.Click, math.huge)
+                    if Library.flags.sellAllItemsWhenFarm then
+                        sellAllItems()
+                    end
+                    task.wait(2.1)
+                end
+            )
+        end
+    end
 end
 
 --#endregion
@@ -199,9 +375,9 @@ do
     end
     local farmingTab = Window:CreateTab("Farming")
     do
-        local moneyFarmingSec = farmingTab:CreateSector("Money Farming", "left")
+        local jobFarmingSec = farmingTab:CreateSector("Job Farming", "left")
         do
-            moneyFarmingSec:AddToggle(
+            jobFarmingSec:AddToggle(
                 "Auto Collect Trash Job",
                 false,
                 function()
@@ -230,7 +406,88 @@ do
                 end,
                 "autoCollectTrash"
             )
-            moneyFarmingSec:AddToggle(
+        end
+        local collectableFarmingSec = farmingTab:CreateSector("Collectable Farming", "left")
+        do
+            collectableFarmingSec:AddToggle(
+                "Present Farm (Car)",
+                false,
+                function()
+                    if not getMyCar() then
+                        return
+                    end
+                    task.spawn(
+                        function()
+                            while Library.flags.autoPresent do
+                                openAllPresents()
+                                task.wait(2)
+                            end
+                        end
+                    )
+                end,
+                "autoPresent"
+            )
+            collectableFarmingSec:AddToggle(
+                "Dumpster Farm (Car)",
+                false,
+                function()
+                    if not getMyCar() then
+                        return
+                    end
+                    task.spawn(
+                        function()
+                            while Library.flags.autoDumpsters do
+                                startDumpsterFarm()
+                                task.wait(2)
+                            end
+                        end
+                    )
+                end,
+                "autoDumpsters"
+            )
+        end
+        local cashFarmingSec = farmingTab:CreateSector("Cash Farming", "left")
+        do
+            cashFarmingSec:AddToggle(
+                "ATM Farm (Car)",
+                false,
+                function()
+                    if not getMyCar() then
+                        return
+                    end
+                    task.spawn(
+                        function()
+                            while Library.flags.autoATM do
+                                startAtmFarm()
+                                task.wait(2)
+                            end
+                        end
+                    )
+                end,
+                "autoATM"
+            )
+            cashFarmingSec:AddToggle(
+                "Dropped Cash Farm (Car)",
+                false,
+                function()
+                    if not getMyCar() then
+                        return
+                    end
+                    task.spawn(
+                        function()
+                            while Library.flags.autoCollectDroppedCash do
+                                startCashFarm()
+                                task.wait(2)
+                            end
+                        end
+                    )
+                end,
+                "autoCollectDroppedCash"
+            )
+        end
+        local miscSec = farmingTab:CreateSector("Misc", "left")
+        do
+            miscSec:AddToggle(
                 "Money Collect Aura",
                 false,
                 function()
@@ -265,6 +522,35 @@ do
                     )
                 end,
                 "moneyCollectAura"
+            )
+            miscSec:AddToggle(
+                "Sell All Items When Farm",
+                false,
+                function()
+                end,
+                "sellAllItemsWhenFarm"
+            )
+            miscSec:AddButton(
+                "Sell All Items",
+                function()
+                    sellAllItems()
+                end
+            )
+        end
+        local robberyStatusSec = farmingTab:CreateSector("Robbery Statuses", "right")
+        do
+            local labels = {}
+            for k, v in pairs(getAllRobberyStatuses()) do
+                labels[k] = robberyStatusSec:AddLabel(string.format("%s: %s", k, v))
+            end
+            task.spawn(
+                function()
+                    while task.wait(3) do
+                        for k, v in pairs(getAllRobberyStatuses()) do
+                            labels[k]:Set((string.format("%s: %s", k, v)))
+                        end
+                    end
+                end
             )
         end
     end
