@@ -3,6 +3,7 @@ setreadonly(syn, false)
 syn.protect_gui = function(gui)
     gui.Parent = game.CoreGui
 end
+setreadonly(syn, true)
 
 for _, v in ipairs(game.CoreGui:GetChildren()) do
     if v.Name == "ScreenGui" then
@@ -64,10 +65,6 @@ local function tazePlayer(player)
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = oldCf
                 didChangeTeam = true
             end
-
-            local tazer =
-                game.Players.LocalPlayer.Backpack:FindFirstChild("Taser") or
-                game.Players.LocalPlayer.Character:FindFirstChild("Taser")
 
             local eventArgs = {
                 [1] = {

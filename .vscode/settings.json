@@ -26,7 +26,9 @@
         "mousemoveabs",
         "mousemoverel",
         "getconstants",
-        "getsenv"
+        "getsenv",
+        "sethiddenproperty"
     ],
-    "lua.targetVersion": "5.2"
+    "lua.targetVersion": "5.2",
+    "robloxLsp.diagnostics.disable": ["undefined-global"]
 }
