@@ -24,7 +24,8 @@ local localPlayer = players.LocalPlayer
 local playerChar = localPlayer.Character or localPlayer.Character:Wait()
 
 -- // Dependencies
-local Library = loadstring(game:HttpGet("https://pastebin.com/raw/PTrFUueU"))()
+local Library =
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/slattisbabygirl/cattoware/main/Wcatto.lua"))()
 local ESP = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
 local NotifyLibrary =
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynissimo/main/Scripts/AkaliNotif.lua"))()
@@ -32,11 +33,11 @@ local NotifyLibrary =
 local NotifyFunc = NotifyLibrary.Notify
 
 -- // UI Theme
-Library.theme.accentcolor = Color3.new(0.011764, 0.521568, 1)
+
+Library.theme.accentcolor = Color3.new(0.835294, 0.011764, 1)
 Library.theme.background = "rbxassetid://2151741365"
 Library.theme.tilesize = 0.77
-Library.theme.accentcolor2 = Color3.new(0.011764, 0.521568, 1)
-Library.theme.backgroundcolor = Color3.fromRGB(20, 20, 20)
+Library.theme.backgroundcolor = Color3.fromRGB(10, 10, 10)
 
 -- // ESP Object Listeners
 if game:GetService("Workspace").Ignored:FindFirstChild("WinterMAP") then
@@ -441,18 +442,14 @@ local function getAllItemsInBackpackAndCharacter()
     local retNames = {}
     for _, tool in ipairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
         if tool:IsA("Tool") and tool.Name ~= "Combat" then
-            if not tool:FindFirstChild("CantStore") then
-                table.insert(ret, tool)
-                table.insert(retNames, tool.Name)
-            end
+            table.insert(ret, tool)
+            table.insert(retNames, tool.Name)
         end
     end
     for _, v in ipairs(game.Players.LocalPlayer.Character:GetChildren()) do
         if v:IsA("Tool") and v.Name ~= "Combat" then
-            if not v:FindFirstChild("CantStore") then
-                table.insert(ret, v)
-                table.insert(retNames, v.Name)
-            end
+            table.insert(ret, v)
+            table.insert(retNames, v.Name)
         end
     end
     return ret, retNames

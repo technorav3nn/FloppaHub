@@ -14,26 +14,46 @@ end
 -- // Dependencies
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/Library.lua"))()
 local ESP = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
+local Keys, Network =
+    loadstring(
+    game:HttpGet(
+        "https://gist.githubusercontent.com/technorav3nn/53b385abeea871dce26b413b6eba63c5/raw/0ea5372431094186339f07dbbab4edb746d381c5/jb_key_dumper_(THANKS%2520Introvert1337).lua"
+    )
+)()
 
 -- // Services
 local runService = game:GetService("RunService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local players = game:GetService("Players")
 
+-- /// Game Services
+local notifService = require(game:GetService("ReplicatedStorage").Game.Notification)
+
 -- // Variables
 local localPlayer = players.LocalPlayer
 
+-- // Tables
 local connections = {}
+local functions = {}
+local hashes = {
+    grabItem = "b34pkmn5",
+    dropCash = "ex9xtqda",
+    launchNuke = "gqkf0iai"
+}
 
--- /// RunService Variables
+for hashName, hash in pairs(hashes) do
+    Keys[hashName] = hash
+end
+
+-- // RunService Variables
 local renderStepped = runService.RenderStepped
 
--- /// UI Library Variables
+-- // UI Library Variables
 local flags = getgenv().Toggles
 local options = getgenv().Options
 
 -- // Modules
--- ///
+local gunShopData = require(game:GetService("ReplicatedStorage").Game.GunShop.Data.Held)
 
 -- // Disable ESP and other stuff on load
 ESP.Players = false
@@ -44,33 +64,15 @@ ESP.Names = true
 
 ESP:Toggle(true)
 
--- // UI
-
 -- // Watermark and Notification
 Library:SetWatermark("Floppa Hub")
 Library:Notify("Loading UI...")
 
 -- // ESP Listeners
-
--- /// Dropped Gun ESP
-ESP:AddObjectListener(
-    workspace,
-    {
-        Name = "GunDrop",
-        CustomName = "Gun",
-        ColorDynamic = function()
-            return options.gunESPColor.Value
-        end,
-        IsEnabled = "DroppedGun"
-    }
-)
+-- /// ESP:AddObjectListener()
 
 -- // Initialize ESP
 ESP.Players = false
-
-ESP.Tracers = false
-ESP.Boxes = true
-ESP.Names = true
 
 ESP:Toggle(true)
 
@@ -98,8 +100,62 @@ local function setDefault()
 end
 --#endregion
 
+-- // Functions
+local function sendNotification(message, duration)
+    notifService.new(
+        {
+            Text = message or "Hello, world!",
+            Duration = duration or 4
+        }
+    )
+end
+
+-- // Grab Gun From GunShop
+local guns = {}
+for _, allGuns in pairs(gunShopData) do
+    for _, gun in pairs(allGuns) do
+        table.insert(guns, gun)
+    end
+end
+
+local function grabGun(name)
+    for _, allGuns in pairs(gunShopData) do
+        for _, gun in pairs(allGuns) do
+            if gun == name then
+                Network:FireServer(hashes.grabItem, name)
+                break
+            end
+        end
+    end
+end
+
+-- // UI
+sendNotification("Floppa Hub Loaded!\n(Press LeftShift to show UI)", 4)
+
 local Window = Library:CreateWindow("Floppa Hub")
 do
+    local playerTab = Window:AddTab("Player")
+    do
+    end
+
+    local combatTab = Window:AddTab("Combat")
+    do
+        local weaponsTabBox = combatTab:AddRightTabbox()
+        do
+            local gunsTabBox = weaponsTabBox:AddTab("Guns")
+            do
+                gunsTabBox:AddDropdown("gunChosen", {Text = "Grab Gun", Default = guns[1], Values = guns})
+                gunsTabBox:AddButton(
+                    "Grab Chosen",
+                    function()
+                        local chosenGun = options.gunChosen.Value
+                        grabGun(chosenGun)
+                    end
+                )
+            end
+        end
+    end
+
     local visualsTab = Window:AddTab("Visuals")
     do
         local espBoxTab = visualsTab:AddLeftTabbox()
@@ -117,12 +173,6 @@ do
                         ESP.Color = options.playerESPColor.Value
                     end
                 )
-                espSec:AddToggle("gunESP", {Text = "Dropped Gun ESP", Default = false}):OnChanged(
-                    function()
-                        ESP.DroppedGun = flags.gunESP.Value
-                    end
-                )
-                flags.gunESP:AddColorPicker("gunESPColor", {Default = Color3.fromRGB(0, 124, 0)})
             end
             local espOptionsSec = espBoxTab:AddTab("ESP Options")
             do
@@ -154,9 +204,18 @@ do
             end
         end
     end
-    local SettingsTab = Window:AddTab("Settings")
+
+    local trollingTab = Window:AddTab("Trolling")
     do
-        local themeSec = SettingsTab:AddLeftGroupbox("Theme")
+    end
+
+    local miscTab = Window:AddTab("Miscellaneous")
+    do
+    end
+
+    local settingsTab = Window:AddTab("Settings")
+    do
+        local themeSec = settingsTab:AddLeftGroupbox("Theme")
         do
             themeSec:AddLabel("Background Color"):AddColorPicker("BackgroundColor", {Default = Library.BackgroundColor})
             themeSec:AddLabel("Main Color"):AddColorPicker("MainColor", {Default = Library.MainColor})

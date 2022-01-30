@@ -6,7 +6,7 @@ local Section = Tab:NewSection("Farming")
 local players = game:GetService("Players")
 local client = players.LocalPlayer
 
-local playerChar = client.Character or client.Character:Wait()
+local localPlayer = players.LocalPlayer
 
 local flags = {}
 function flags:SetFlag(name, value)
@@ -25,7 +25,7 @@ end
 local function getPizzaBox(box)
     if box:IsA("Tool") and box:FindFirstChild("House") then
         local boxCf = box.Handle.CFrame
-        playerChar.HumanoidRootPart.CFrame = boxCf + Vector3.new(0, 3, 0)
+        localPlayer.Character.HumanoidRootPart.CFrame = boxCf + Vector3.new(0, 3, 0)
         task.wait(0.3)
     end
 end
@@ -36,7 +36,7 @@ local function populatePizzaBoxes()
             table.insert(boxes, v)
         end
     end
-    for _, v in pairs(playerChar:GetChildren()) do
+    for _, v in pairs(localPlayer.Character:GetChildren()) do
         if v:FindFirstChild("House") then
             table.insert(boxes, v)
         end
@@ -50,10 +50,10 @@ local function deliverPizzaToHouse(address)
             if housePart then
                 local tool = client.Backpack:FindFirstChild(address)
                 if tool then
-                    playerChar.Humanoid:EquipTool(tool)
+                    localPlayer.Character.Humanoid:EquipTool(tool)
                 end
                 task.wait()
-                playerChar.HumanoidRootPart.CFrame = housePart.CFrame
+                localPlayer.Character.HumanoidRootPart.CFrame = housePart.CFrame
                 task.wait(5)
             end
         end

@@ -437,11 +437,6 @@ do
                     end
                 )
                 flags.killerESP:AddColorPicker("killerESPColor", {Default = Color3.new(0.019607, 0.639215, 1)})
-                options.killerESPColor:OnChanged(
-                    function()
-                        ESP.Color = options.playerESPColor.Value
-                    end
-                )
             end
             local espOptionsSec = espBoxTab:AddTab("ESP Options")
             do

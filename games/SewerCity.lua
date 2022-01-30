@@ -67,93 +67,9 @@ local function safeLoadstring(name, url)
     return func
 end
 
-local function sendNotification(opts)
-    local CoreGui = game:GetService("StarterGui")
-
-    CoreGui:SetCore(
-        "SendNotification",
-        {
-            Title = opts.title and opts.title or "No title",
-            Text = opts.text and opts.text or "No Text",
-            Duration = opts.duration and opts.duration or opts.duration
-        }
-    )
-end
+local connections = {}
 
 -- Auto farming functions
-
--- Gets a "collectable" (something that can be picked up / clicked)
-local validCollectables = {"Money", "ATM", "Lockpick", "Shotgun", "Glock", "Knife", "Bat", "CashRegister"}
-local gettingItems = {ATM = true, Money = true, Register = true}
-
-local function getCollectables(name)
-    if table.find(validCollectables, name) ~= nil then
-        local oldPos = playerChar.HumanoidRootPart.CFrame
-
-        while wait() do
-            -- If it is Money, then traverse the "Cash" folder instead.
-            print("Found in table")
-
-            if name == "Money" then
-                for _, cash in pairs(game.Workspace.Cash:GetChildren()) do
-                    repeat
-                        if cash.Transparency == 1 then
-                            gettingItems.Money = false
-                            break
-                        end
-                        playerChar.HumanoidRootPart.CFrame = cash.CFrame
-                        wait(0.3)
-                        fireclickdetector(cash.ClickDetector)
-                        if not gettingItems.Money then
-                            playerChar.HumanoidRootPart.CFrame = oldPos
-                            break
-                        end
-                    until true
-                end
-                playerChar.HumanoidRootPart.CFrame = oldPos
-                return
-            end
-
-            local amount = 0
-            local firstTime = true
-
-            for _, v in pairs(game.Workspace:GetChildren()) do
-                if (not gettingItems.ATM and name == "ATM") or (not gettingItems.Register and name == "CashRegister") then
-                    playerChar.HumanoidRootPart.CFrame = oldPos
-                    break
-                end
-
-                if name == v.Name then
-                    print("Got it")
-                    playerChar.HumanoidRootPart.CFrame =
-                        CFrame.new(v.CFrame.x, v.CFrame.y + 5, v.Name == "ATM" and v.CFrame.z + 4 or v.CFrame.z)
-                    wait(0.3)
-                    fireclickdetector(v.ClickDetector)
-                    amount = amount + 1
-                end
-            end
-
-            if amount == 0 and not firstTime then
-                sendNotification(
-                    {
-                        title = "Floppa Hub",
-                        text = "Didn't find any items named " ..
-                            name .. ". Try waiting as " .. name .. " will probably respawn."
-                    }
-                )
-                break
-            else
-                firstTime = false
-                break
-            end
-
-            playerChar.HumanoidRootPart.CFrame = oldPos
-        end
-    else
-        warn("Invalid collectable at getCollectables call")
-        return nil
-    end
-end
 
 -- Remove duplicate GUIS
 local function removeDuplicateGuis()
@@ -260,19 +176,42 @@ do
         autoFarmFolder:AddToggle(
             {
                 text = "Get Cash",
-                flag = "loopGetMoney"
+                flag = "autoCash",
+                callback = function(bool)
+                    task.spawn(
+                        function()
+                            while library.flags.autoCash and task.wait() do
+                                if not library.flags.autoCash then
+                                    break
+                                end
+                                for _, v in pairs(game.Workspace.Cash:GetChildren()) do
+                                    if not library.flags.autoCash then
+                                        break
+                                    end
+                                    if v.Transparency ~= 1 then
+                                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                                            CFrame.new(v.Position + Vector3.new(0, 3, 0))
+                                        task.wait(0.15)
+                                        fireclickdetector(v.ClickDetector)
+                                        task.wait(0.15)
+                                    end
+                                end
+                            end
+                        end
+                    )
+                end
             }
         )
         autoFarmFolder:AddToggle(
             {
                 text = "Get ATMs",
-                flag = "loopGetATM"
+                flag = "autoATM"
             }
         )
         autoFarmFolder:AddToggle(
             {
                 text = "Get Registers",
-                flag = "loopGetRegister"
+                flag = "autoRegister"
             }
         )
         autoFarmFolder:AddDivider()
@@ -280,7 +219,6 @@ do
             {
                 text = "Get Lockpicks",
                 callback = function()
-                    getCollectables("Lockpick")
                 end
             }
         )
@@ -288,7 +226,6 @@ do
             {
                 text = "Get Shotguns",
                 callback = function()
-                    getCollectables("Shotgun")
                 end
             }
         )
@@ -296,7 +233,6 @@ do
             {
                 text = "Get Glocks",
                 callback = function()
-                    getCollectables("Glock")
                 end
             }
         )
@@ -312,15 +248,13 @@ do
             {
                 text = "Get Knives",
                 callback = function()
-                    getCollectables("Knife")
                 end
             }
         )
     end
     local autoBuyFolder = window:AddFolder("Auto buys")
     do
-        local buyList =
-            autoBuyFolder:AddList(
+        autoBuyFolder:AddList(
             {
                 text = "Auto Buy Item",
                 values = allItemsKeys,
@@ -347,25 +281,16 @@ runService.Heartbeat:Connect(
         if library.flags.infStamina then
             game.Players.LocalPlayer.Backpack.Stamina.Value = 100
         end
-        if library.flags.loopGetMoney then
-            gettingItems.Money = true
-            getCollectables("Money")
-        else
-            gettingItems.Money = false
-        end
-        if library.flags.loopGetATM then
-            gettingItems.ATM = true
-            getCollectables("ATM")
-        else
-            gettingItems.ATM = false
-        end
-        if library.flags.loopGetRegister then
-            gettingItems.Register = true
-            getCollectables("CashRegister")
-        else
-            gettingItems.Register = false
-        end
-        if library.flags.autoDumbell then
+        if library.flags.autoCash then
+            print("yes")
+            for _, v in pairs(game.Workspace.Cash:GetChildren()) do
+                if v.Transparency ~= 1 then
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(v.Position)
+                    task.wait(0.15)
+                    fireclickdetector(v.ClickDetector)
+                    task.wait(0.15)
+                end
+            end
         end
     end
 )
