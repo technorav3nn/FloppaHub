@@ -64,7 +64,6 @@ local function EKHBDII_fake_script() -- ScreenGui.GUIHandler
     task.wait(2)
 
     local tween3 = tweenService:Create(image, TweenInfo.new(0.1), {ImageTransparency = 1})
-
     local tween4 = tweenService:Create(textLabel, TweenInfo.new(0.1), {TextTransparency = 1})
 
     for i = 100, 0, -3 do
